@@ -1,0 +1,11 @@
+{
+  "name": "factory",
+  "private": true,
+  "workspaces": [
+    "cdk"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm test --workspaces"
+  }
+}
