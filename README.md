@@ -46,3 +46,7 @@ helper roles as a raw override. Raise the pin on purpose, with the tests.
 npm install
 npm test      # type-check, build, then jest
 ```
+
+## License
+
+[Apache-2.0](LICENSE).
