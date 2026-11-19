@@ -3,7 +3,8 @@
   "private": true,
   "license": "Apache-2.0",
   "workspaces": [
-    "cdk"
+    "cdk",
+    "platform/github-oidc"
   ],
   "scripts": {
     "build": "npm run build --workspaces",
