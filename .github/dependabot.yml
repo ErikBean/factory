@@ -1,0 +1,14 @@
+# Keeps the actions pinned by SHA in .github/workflows up to date, including
+# those in the reusable workflows apps call. Waits a week after a release, so a
+# compromised release has time to be caught before it's proposed here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]

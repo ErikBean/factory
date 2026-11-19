@@ -1,0 +1,103 @@
+name: App dev cleanup
+
+# Called by a factory-built app when a pull request closes, to delete the dev
+# stacks its branch deployed from an agent's machine. The caller must run on
+# pull_request_target, so GitHub runs the default branch's copy of it, never
+# the pull request's:
+#
+#   on:
+#     pull_request_target:
+#       types: [closed]
+#   jobs:
+#     cleanup:
+#       permissions:
+#         contents: read
+#         id-token: write
+#       uses: ErikBean/factory/.github/workflows/app-dev-cleanup.yml@<sha> # vX.Y.Z
+#       with:
+#         aws-account-id: ${{ vars.AWS_ACCOUNT_ID }}
+#         aws-region: ${{ vars.AWS_REGION }}
+#
+# The role, factory-dev-cleanup-<repo>, trusts only the app's main branch
+# running this workflow, and can delete only stacks tagged with the app's
+# project and stage=dev. The branch comes from the closed pull request's own
+# event, so a pull request can't name another branch's stacks. It checks out
+# the default branch, never the pull request's code, and installs it without
+# running install scripts, only to get factory-dev-slug from the app's pinned
+# copy of the library.
+on:
+  workflow_call:
+    inputs:
+      aws-account-id:
+        description: The account the app's dev stacks deploy to.
+        type: string
+        required: true
+      aws-region:
+        type: string
+        required: true
+      cdk-qualifier:
+        description: The bootstrap qualifier dev stacks deploy through.
+        type: string
+        default: hnb659fds
+
+permissions:
+  contents: read
+
+jobs:
+  destroy:
+    name: destroy
+    # Fork pull requests are skipped: they have no dev stacks, and their
+    # branch name could match one of the repo's own.
+    if: >-
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Work out the branch's dev slug
+        id: slug
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          slug="$(npx --no-install factory-dev-slug "$BRANCH")"
+          echo "slug=$slug" >> "$GITHUB_OUTPUT"
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::${{ inputs.aws-account-id }}:role/factory-dev-cleanup-${{ github.event.repository.name }}
+          aws-region: ${{ inputs.aws-region }}
+      - name: Delete the branch's dev stacks
+        env:
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          SLUG: ${{ steps.slug.outputs.slug }}
+          PROJECT: ${{ github.event.repository.name }}
+          QUALIFIER: ${{ inputs.cdk-qualifier }}
+        run: |
+          set -euo pipefail
+          account="$(aws sts get-caller-identity --query Account --output text)"
+          exec_role="arn:aws:iam::${account}:role/cdk-${QUALIFIER}-cfn-exec-role-${account}-${AWS_REGION}"
+          stacks="$(aws cloudformation describe-stacks --output text --query \
+            "Stacks[?Tags[?Key=='project' && Value=='${PROJECT}'] && Tags[?Key=='stage' && Value=='dev'] && Tags[?Key=='branch' && Value=='${SLUG}']].StackName")"
+          if [ -z "$stacks" ]; then
+            echo "No dev stacks for branch ${BRANCH}." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for stack in $stacks; do
+            echo "Deleting ${stack}"
+            aws cloudformation delete-stack --stack-name "$stack" --role-arn "$exec_role"
+          done
+          for stack in $stacks; do
+            aws cloudformation wait stack-delete-complete --stack-name "$stack"
+            echo "Deleted ${stack}" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
