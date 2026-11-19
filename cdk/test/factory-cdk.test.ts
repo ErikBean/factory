@@ -113,7 +113,9 @@ describe("StaticSite", () => {
 describe("package", () => {
   test("the build exports the constructs", () => {
     const built = require("../dist");
-    expect(Object.keys(built)).toEqual(expect.arrayContaining(["FactoryStack", "StaticSite", "stageFromContext", "devSlug"]));
+    expect(Object.keys(built)).toEqual(
+      expect.arrayContaining(["FactoryStack", "StaticSite", "stageFromContext", "devSlug", "prodDiffMarkdown", "resourcesWithoutBoundary"]),
+    );
   });
 
   test("aws-cdk-lib is pinned to a minor version, since the boundary check uses its internal _toCloudFormation()", () => {
