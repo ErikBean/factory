@@ -116,14 +116,21 @@ its own reaches no app. To release:
 2. After it merges, the admin runs
    `gh release create v0.3.0 --repo ErikBean/factory --target main --generate-notes`.
 3. [`publish.yml`](.github/workflows/publish.yml) checks the tag matches the
-   version, runs the tests and publishes to npm through trusted publishing,
-   with provenance and no stored token. A prerelease such as `v0.3.0-rc.1`
-   goes to npm's `next` dist-tag.
-4. Dependabot proposes the new release to each app after a week's cooldown.
+   version, runs the tests and stages the package on npm through trusted
+   publishing, with provenance and no stored token. A prerelease such as
+   `v0.3.0-rc.1` goes to npm's `next` dist-tag.
+4. The admin checks the staged version (`npm stage list @favabean/factory-cdk`,
+   then `npm stage download <id>`) and approves it with 2FA:
+   `npm stage approve <id>`, or Approve on npmjs.com. The trusted publisher is
+   stage-only, and the workflow's token can't approve, so nothing goes live
+   without this step.
+5. Dependabot proposes the new release to each app after a week's cooldown.
 
 [`platform/github/release-tags.sh`](platform/github/release-tags.sh), run
 once by the admin, makes `v*` tags admin-only to create and impossible to
-move or delete, and turns on immutable releases.
+move or delete, turns on immutable releases, and makes the `npm-publish`
+environment, which only runs from `v*` tags can use. npm's trusted publisher
+names that environment, so a branch that edits `publish.yml` can't publish.
 
 ## License
 

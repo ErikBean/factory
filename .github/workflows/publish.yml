@@ -1,10 +1,20 @@
 name: Publish
 
-# Publishes @favabean/factory-cdk to npm when a factory release is published.
+# Stages @favabean/factory-cdk on npm when a factory release is published. A
+# staged version isn't installable until a maintainer approves it on npm with
+# 2FA (npm stage approve <id>, or Approve on npmjs.com), and this workflow's
+# token can't approve. The trusted publisher is stage-only, so a plain npm
+# publish from here is refused.
 # The same release is what apps' workflow pins and the platform's roles trust,
 # so one release ships both. It uses npm trusted publishing: npm trusts this
 # workflow in this repo through GitHub OIDC, so no npm token is stored, and
 # npm adds provenance that ties the package to this commit.
+#
+# npm's trusted publisher names this repo, this file and the npm-publish
+# environment. npm doesn't check which branch a run came from, so the
+# environment is what limits publishing to release tags: it only accepts runs
+# from v* tags, and only the factory's admin can create those (the
+# release-tags ruleset). A branch that edits this file can't enter it.
 #
 # Release tags (v*) can only be created by the factory's admin, under the
 # release-tags ruleset. Any other release is refused, as is a tag that doesn't
@@ -23,6 +33,7 @@ jobs:
     name: publish
     if: startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
+    environment: npm-publish
     permissions:
       contents: read
       id-token: write
@@ -48,10 +59,17 @@ jobs:
           fi
       - run: npm ci --ignore-scripts
       - run: npm test
-      - name: Publish
+      - name: Stage for approval
         env:
           PRERELEASE: ${{ github.event.release.prerelease }}
         run: |
           set -euo pipefail
           if [ "$PRERELEASE" = "true" ]; then dist_tag=next; else dist_tag=latest; fi
-          npm publish --workspace cdk --access public --tag "$dist_tag"
+          npm stage publish --workspace cdk --access public --tag "$dist_tag"
+          {
+            echo "## Staged for approval"
+            echo
+            echo "Nothing is installable until a maintainer approves it on npm. Check it with"
+            echo "\`npm stage list @favabean/factory-cdk\` and \`npm stage download <id>\`, then"
+            echo "\`npm stage approve <id>\` or Approve on npmjs.com."
+          } >> "$GITHUB_STEP_SUMMARY"
