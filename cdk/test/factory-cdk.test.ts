@@ -116,7 +116,7 @@ describe("package", () => {
     expect(Object.keys(built)).toEqual(expect.arrayContaining(["FactoryStack", "StaticSite", "stageFromContext", "devSlug"]));
   });
 
-  test("aws-cdk-lib is pinned to a minor version, since the boundary check reads its internals", () => {
+  test("aws-cdk-lib is pinned to a minor version, since the boundary check uses its internal _toCloudFormation()", () => {
     const { peerDependencies } = require("../package.json");
     expect(peerDependencies["aws-cdk-lib"]).toMatch(/^~2\.\d+\.\d+$/);
   });

@@ -1,3 +1,7 @@
-export * from "./stage";
-export * from "./factory-stack";
-export * from "./static-site";
+// Named exports only, so two modules can't export the same name by accident.
+export { devSlug, stageFromContext } from "./stage";
+export type { Stage, StageName } from "./stage";
+export { FactoryStack } from "./factory-stack";
+export type { FactoryStackProps } from "./factory-stack";
+export { StaticSite } from "./static-site";
+export type { StaticSiteProps } from "./static-site";

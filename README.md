@@ -39,8 +39,12 @@ new StaticSite(stack, "Site", { source: "site" });
 ```
 
 `aws-cdk-lib` is a peer dependency pinned to one minor version. The boundary
-check reads CDK internals, because CDK attaches the boundary to some of its own
-helper roles as a raw override. Raise the pin on purpose, with the tests.
+check renders roles with `_toCloudFormation()`, which CDK marks as internal,
+because CDK attaches the boundary to some of its own helper roles as a raw
+override. Raise the pin on purpose, with the tests.
+
+The package uses named exports only, never `export *`, so two modules can't
+export the same name by accident.
 
 ```sh
 npm install

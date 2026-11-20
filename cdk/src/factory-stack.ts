@@ -10,7 +10,6 @@ import {
   AspectPriority,
   Aspects,
   CfnOutput,
-  CfnResource,
   DefaultStackSynthesizer,
   IAspect,
   RemovalPolicies,
@@ -31,28 +30,30 @@ export interface FactoryStackProps extends Omit<StackProps, "stackName" | "synth
   readonly boundaryName?: string;
 }
 
-const BOUNDED_TYPES = [CfnRole.CFN_RESOURCE_TYPE_NAME, CfnUser.CFN_RESOURCE_TYPE_NAME];
+/** What CfnResource._toCloudFormation() returns: the resource as it will render. */
+interface RenderedResources {
+  Resources: Record<string, { Properties?: { PermissionsBoundary?: unknown } }>;
+}
 
 /**
- * Whether a role or user resource will render with a PermissionsBoundary. CDK
- * attaches the boundary to most roles as a property, but to some of its own
- * helper roles (such as BucketDeployment's) as a raw property override, so both
- * are checked. This reads CfnResource internals, so package.json pins
- * aws-cdk-lib's minor version and a test checks that a helper role passes.
+ * Whether a role or user will render with a PermissionsBoundary. CDK attaches
+ * the boundary to most roles as the typed permissionsBoundary property, but to
+ * some of its own helper roles (such as BucketDeployment's) as a raw property
+ * override, which only shows up once the resource is rendered and resolved.
+ * Rendering uses _toCloudFormation(), which is in CDK's typings but underscored
+ * as internal, so package.json pins aws-cdk-lib's minor version and a test
+ * checks that a helper role passes.
  */
-function hasBoundary(node: CfnResource): boolean {
-  const n = node as unknown as {
-    permissionsBoundary?: unknown;
-    _cfnProperties?: { PermissionsBoundary?: unknown };
-    rawOverrides?: { Properties?: { PermissionsBoundary?: unknown } };
-  };
-  return Boolean(n.permissionsBoundary ?? n._cfnProperties?.PermissionsBoundary ?? n.rawOverrides?.Properties?.PermissionsBoundary);
+function hasBoundary(node: CfnRole | CfnUser): boolean {
+  if (node.permissionsBoundary) return true;
+  const { Resources } = Stack.of(node).resolve(node._toCloudFormation()) as RenderedResources;
+  return Object.values(Resources).some((r) => Boolean(r.Properties?.PermissionsBoundary));
 }
 
 /** Fails synth for any IAM role or user without a permissions boundary. */
 class RequireBoundary implements IAspect {
   visit(node: IConstruct): void {
-    if (node instanceof CfnResource && BOUNDED_TYPES.includes(node.cfnResourceType) && !hasBoundary(node)) {
+    if ((node instanceof CfnRole || node instanceof CfnUser) && !hasBoundary(node)) {
       Annotations.of(node).addError("Every IAM role and user needs the account's permissions boundary");
     }
   }
