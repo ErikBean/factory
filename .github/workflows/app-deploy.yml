@@ -49,7 +49,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      - run: npm ci
+      # No install scripts: every step in this job can request the deploy
+      # role's token, so a compromised dependency's script could deploy.
+      - run: npm ci --ignore-scripts
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: arn:aws:iam::${{ inputs.aws-account-id }}:role/factory-deploy-${{ github.event.repository.name }}

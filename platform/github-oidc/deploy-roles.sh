@@ -5,8 +5,9 @@
 # variables, which its workflows build the role ARNs from. Run it again after
 # adding an app to apps.json; it's idempotent.
 #
-# It first checks each repo ID in apps.json against GitHub, so a typo can't
-# leave a role trusting the wrong repo. Before anything changes, cdk deploy
+# It runs only from a clean checkout of the factory's main branch, so it never
+# deploys unreviewed roles. It checks each repo ID in apps.json against GitHub,
+# so a typo can't leave a role trusting the wrong repo. Before anything changes, cdk deploy
 # shows the IAM changes and asks you to confirm them.
 #
 #   platform/github-oidc/deploy-roles.sh <admin-profile>
@@ -33,7 +34,15 @@ while read -r repo id; do
   [ "$actual" = "$id" ] || { echo "apps.json has ID $id for $repo, but GitHub says $actual" >&2; exit 1; }
 done <<<"$apps"
 
-[ -d ../../node_modules ] || (cd ../.. && npm ci)
+# Deploy only reviewed code: the checkout must be the factory's main branch as
+# it is on GitHub, with no local changes.
+factory="$(config c.factoryRepo)"
+main="$(gh api "repos/$factory/commits/main" --jq .sha)"
+[ "$(git rev-parse HEAD)" = "$main" ] || { echo "Check out $factory's main ($main) first" >&2; exit 1; }
+[ -z "$(git status --porcelain)" ] || { echo "The checkout has local changes" >&2; exit 1; }
+
+# No install scripts: they'd run as you, next to your AWS admin sign-in.
+(cd ../.. && npm ci --ignore-scripts)
 npx cdk deploy --profile "$profile" --require-approval any-change
 
 while read -r repo _; do
