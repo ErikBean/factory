@@ -1,0 +1,57 @@
+name: Publish
+
+# Publishes @favabean/factory-cdk to npm when a factory release is published.
+# The same release is what apps' workflow pins and the platform's roles trust,
+# so one release ships both. It uses npm trusted publishing: npm trusts this
+# workflow in this repo through GitHub OIDC, so no npm token is stored, and
+# npm adds provenance that ties the package to this commit.
+#
+# Release tags (v*) can only be created by the factory's admin, under the
+# release-tags ruleset. Any other release is refused, as is a tag that doesn't
+# match cdk/package.json's version, so the version is always bumped in a
+# reviewed pull request first. A prerelease, such as v0.3.0-rc.1, goes to
+# npm's "next" dist-tag rather than "latest".
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish
+    if: startsWith(github.event.release.tag_name, 'v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # No npm cache, and no install scripts: every step here can request the
+      # token npm accepts for publishing.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          registry-url: https://registry.npmjs.org
+      - name: Check the tag matches the package version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          version="$(node -p 'require("./cdk/package.json").version')"
+          if [ "$TAG" != "v$version" ]; then
+            echo "Release $TAG doesn't match cdk/package.json's version $version" >&2
+            exit 1
+          fi
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - name: Publish
+        env:
+          PRERELEASE: ${{ github.event.release.prerelease }}
+        run: |
+          set -euo pipefail
+          if [ "$PRERELEASE" = "true" ]; then dist_tag=next; else dist_tag=latest; fi
+          npm publish --workspace cdk --access public --tag "$dist_tag"

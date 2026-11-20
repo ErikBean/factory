@@ -8,7 +8,7 @@ against surprise costs and security risks.
 | Folder | What | State |
 | --- | --- | --- |
 | `cdk/` | `@favabean/factory-cdk`, the construct library apps install from npm | Started |
-| `.github/workflows/app-*.yml` | Reusable workflows that apps call by SHA. GitHub only runs reusable workflows from `.github/workflows/`, so they live there rather than in a folder of their own | Started |
+| `.github/workflows/app-*.yml` | Reusable workflows that apps call by release tag. GitHub only runs reusable workflows from `.github/workflows/`, so they live there rather than in a folder of their own | Started |
 | `platform/github-oidc/` | Every app's GitHub OIDC deploy and dev cleanup roles, from one app list | Started |
 | `platform/` (the rest) | Account setup, permissions boundary, the agents' GitHub token hook (from aws-agent-bootstrap, dev-machine and agent-github) | Planned |
 | `skills/` | The factory's agent skills (from factory-skills) | Planned |
@@ -59,8 +59,8 @@ npm test      # type-check, build, then jest
 
 ## Reusable workflows
 
-An app's whole CI and CD is three short workflows that call these by SHA, with
-the release in a comment so Dependabot can bump them:
+An app's whole CI and CD is three short workflows that call these at a
+release tag, such as `@v0.2.0`, which Dependabot bumps:
 
 | App workflow | On | Calls |
 | --- | --- | --- |
@@ -74,7 +74,7 @@ variables `AWS_ACCOUNT_ID` and `AWS_REGION`, which `deploy-roles.sh` sets.
 
 Dev cleanup runs on `pull_request_target` on purpose. GitHub then runs the
 default branch's copy of the caller, so the cleanup role can trust the default
-branch, as the deploy role does, and the SHA the app pins is reviewed code. The
+branch, as the deploy role does, and the release the app pins is reviewed code. The
 workflow checks out the default branch, never the pull request, and skips fork
 pull requests, whose branch names could match the repo's own.
 
@@ -87,8 +87,10 @@ A CDK app that makes two roles per app in [`apps.json`](platform/github-oidc/app
   project and `stage=dev`, through the dev bootstrap's execution role.
 
 Both trust only the app's `main` branch, pinned by the repo's and owner's
-numeric IDs, running the matching factory workflow at any ref. The app's
-reviewed `main` chooses the ref, so bumping the pin needs no role change. Both
+numeric IDs, running the matching factory workflow at a `v*` release tag. Only
+the factory's admin can create those tags, so only released factory code can
+hold the roles, whatever an app's pin says. Moving an app to a new release
+needs no role change. Both
 carry the account's permissions boundary. The account's GitHub OIDC provider is
 looked up, not created, since an account has one and it belongs to the
 account's setup.
@@ -104,6 +106,24 @@ It runs only from a clean checkout of `main` as it is on GitHub, checks the
 IDs against GitHub, deploys with the admin's own credentials (not
 a CDK bootstrap role, since agents can use the dev bootstrap's), asks before any
 IAM change, and sets each app's `AWS_ACCOUNT_ID` and `AWS_REGION` variables.
+
+## Releases
+
+A release ships the library and the workflows together. Merging to `main` on
+its own reaches no app. To release:
+
+1. In a pull request, set `cdk/package.json`'s version, such as `0.3.0`.
+2. After it merges, the admin runs
+   `gh release create v0.3.0 --repo ErikBean/factory --target main --generate-notes`.
+3. [`publish.yml`](.github/workflows/publish.yml) checks the tag matches the
+   version, runs the tests and publishes to npm through trusted publishing,
+   with provenance and no stored token. A prerelease such as `v0.3.0-rc.1`
+   goes to npm's `next` dist-tag.
+4. Dependabot proposes the new release to each app after a week's cooldown.
+
+[`platform/github/release-tags.sh`](platform/github/release-tags.sh), run
+once by the admin, makes `v*` tags admin-only to create and impossible to
+move or delete, and turns on immutable releases.
 
 ## License
 
