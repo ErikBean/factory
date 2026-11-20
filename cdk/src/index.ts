@@ -5,3 +5,5 @@ export { FactoryStack } from "./factory-stack";
 export type { FactoryStackProps } from "./factory-stack";
 export { StaticSite } from "./static-site";
 export type { StaticSiteProps } from "./static-site";
+export { resourcesWithoutBoundary } from "./boundaries";
+export { prodDiffMarkdown } from "./prod-diff";

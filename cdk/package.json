@@ -6,7 +6,9 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "factory-dev-slug": "dist/bin/dev-slug.js"
+    "factory-dev-slug": "dist/bin/dev-slug.js",
+    "factory-prod-diff": "dist/bin/prod-diff.js",
+    "factory-check-boundaries": "dist/bin/check-boundaries.js"
   },
   "files": [
     "dist"
@@ -15,6 +17,9 @@
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "test": "tsc --noEmit -p tsconfig.json && npm run build && jest",
     "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@aws-cdk/cloudformation-diff": "^2.187.8"
   },
   "peerDependencies": {
     "aws-cdk-lib": "~2.277.0",

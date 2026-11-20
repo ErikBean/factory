@@ -1,0 +1,31 @@
+name: App CI
+
+# Called by a factory-built app's CI and deploy workflows. Runs the app's
+# tests, synthesizes its prod stage and checks every IAM role has the
+# permissions boundary. It runs the caller's code, so it gets no credentials.
+#
+#   jobs:
+#     test:
+#       uses: ErikBean/factory/.github/workflows/app-ci.yml@<sha> # vX.Y.Z
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npx cdk synth --quiet -c stage=prod
+      - run: npx --no-install factory-check-boundaries cdk.out

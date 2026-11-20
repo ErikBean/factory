@@ -1,0 +1,65 @@
+name: App deploy
+
+# Called by a factory-built app's deploy workflow on each push to its default
+# branch, after app-ci.yml passes. Deploys the prod stage through the role
+# factory-deploy-<repo>, which platform/github-oidc creates. That role trusts
+# only the app's main branch running this workflow, at any ref the app pins.
+#
+#   jobs:
+#     test:
+#       uses: ErikBean/factory/.github/workflows/app-ci.yml@<sha> # vX.Y.Z
+#     deploy:
+#       needs: test
+#       permissions:
+#         contents: read
+#         id-token: write
+#       uses: ErikBean/factory/.github/workflows/app-deploy.yml@<sha> # vX.Y.Z
+#       with:
+#         aws-account-id: ${{ vars.AWS_ACCOUNT_ID }}
+#         aws-region: ${{ vars.AWS_REGION }}
+on:
+  workflow_call:
+    inputs:
+      aws-account-id:
+        description: The account the app's prod stage deploys to.
+        type: string
+        required: true
+      aws-region:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # No install scripts: every step in this job can request the deploy
+      # role's token, so a compromised dependency's script could deploy.
+      - run: npm ci --ignore-scripts
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::${{ inputs.aws-account-id }}:role/factory-deploy-${{ github.event.repository.name }}
+          aws-region: ${{ inputs.aws-region }}
+      - run: npx cdk deploy --all --require-approval never -c stage=prod
+      # Pull requests compare their prod stage with these, without credentials.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: prod-templates
+          path: cdk.out/*.template.json
+          retention-days: 90

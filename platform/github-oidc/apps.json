@@ -1,0 +1,12 @@
+{
+  "account": "431104483706",
+  "region": "us-east-1",
+  "owner": { "name": "ErikBean", "id": 3444917 },
+  "factoryRepo": "ErikBean/factory",
+  "boundary": "agent-boundary",
+  "ciQualifier": "ci",
+  "devQualifier": "hnb659fds",
+  "apps": [
+    { "repo": "jello-world", "id": 1447811648 }
+  ]
+}
