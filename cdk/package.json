@@ -1,0 +1,33 @@
+{
+  "name": "@favabean/factory-cdk",
+  "version": "0.1.0",
+  "description": "CDK constructs for factory-built apps: per-stage stacks behind the account's permissions boundary, and app patterns such as a static site",
+  "license": "Apache-2.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "factory-dev-slug": "dist/bin/dev-slug.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "test": "tsc --noEmit -p tsconfig.json && npm run build && jest",
+    "prepack": "npm run build"
+  },
+  "peerDependencies": {
+    "aws-cdk-lib": "~2.277.0",
+    "constructs": "^10.5.0"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.15.0",
+    "@swc/jest": "^0.2.39",
+    "@types/jest": "^30",
+    "@types/node": "^24.10.1",
+    "aws-cdk-lib": "2.277.0",
+    "constructs": "^10.5.0",
+    "jest": "^30",
+    "typescript": "~7.0.2"
+  }
+}
