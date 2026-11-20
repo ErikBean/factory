@@ -7,7 +7,7 @@ against surprise costs and security risks.
 
 | Folder | What | State |
 | --- | --- | --- |
-| `cdk/` | `@erikbean/factory-cdk`, the construct library apps install from npm | Started |
+| `cdk/` | `@favabean/factory-cdk`, the construct library apps install from npm | Started |
 | `workflows/` | Reusable GitHub Actions workflows that apps call by SHA | Planned |
 | `platform/` | Account setup, permissions boundary, OIDC deploy roles, the agents' GitHub token hook (from aws-agent-bootstrap, dev-machine and agent-github) | Planned |
 | `skills/` | The factory's agent skills (from factory-skills) | Planned |
@@ -31,7 +31,7 @@ An app's whole CDK code:
 
 ```ts
 import { App } from "aws-cdk-lib";
-import { FactoryStack, StaticSite } from "@erikbean/factory-cdk";
+import { FactoryStack, StaticSite } from "@favabean/factory-cdk";
 
 const app = new App();
 const stack = new FactoryStack(app, "Site", { project: "jello-world" });
