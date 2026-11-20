@@ -6,6 +6,12 @@ name: Publish
 # workflow in this repo through GitHub OIDC, so no npm token is stored, and
 # npm adds provenance that ties the package to this commit.
 #
+# npm's trusted publisher names this repo, this file and the npm-publish
+# environment. npm doesn't check which branch a run came from, so the
+# environment is what limits publishing to release tags: it only accepts runs
+# from v* tags, and only the factory's admin can create those (the
+# release-tags ruleset). A branch that edits this file can't enter it.
+#
 # Release tags (v*) can only be created by the factory's admin, under the
 # release-tags ruleset. Any other release is refused, as is a tag that doesn't
 # match cdk/package.json's version, so the version is always bumped in a
@@ -23,6 +29,7 @@ jobs:
     name: publish
     if: startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
+    environment: npm-publish
     permissions:
       contents: read
       id-token: write

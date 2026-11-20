@@ -10,7 +10,10 @@
 #                        To undo a bad tag, release a new version.
 #
 # It also turns on immutable releases, so a published release's tag and
-# assets can't change either. Safe to re-run: it skips what's already there.
+# assets can't change either, and makes the npm-publish environment, which
+# only runs from v* tags can use. npm's trusted publisher names that
+# environment, so a branch that edits publish.yml can't publish. Safe to
+# re-run: it skips what's already there.
 #
 #   platform/github/release-tags.sh [repo]    # default: factory
 set -euo pipefail
@@ -55,5 +58,18 @@ add release-tags-locked '{
 
 gh api -X PUT "repos/$owner/$repo/immutable-releases" >/dev/null
 echo "Immutable releases: on"
+
+# Only runs from v* tags may use the environment npm trusts for publishing.
+gh api -X PUT "repos/$owner/$repo/environments/npm-publish" --input - >/dev/null <<<'{
+  "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true }
+}'
+if gh api "repos/$owner/$repo/environments/npm-publish/deployment-branch-policies" \
+  --jq '.branch_policies[] | "\(.type) \(.name)"' | grep -qx 'tag v\*'; then
+  echo "npm-publish already limited to v* tags"
+else
+  gh api -X POST "repos/$owner/$repo/environments/npm-publish/deployment-branch-policies" \
+    -f name='v*' -f type=tag >/dev/null
+  echo "npm-publish: only v* tags"
+fi
 echo
 echo "Check on the repo's Rules page that release-tags-create's bypass list shows Repository admin."

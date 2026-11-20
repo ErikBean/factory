@@ -123,7 +123,9 @@ its own reaches no app. To release:
 
 [`platform/github/release-tags.sh`](platform/github/release-tags.sh), run
 once by the admin, makes `v*` tags admin-only to create and impossible to
-move or delete, and turns on immutable releases.
+move or delete, turns on immutable releases, and makes the `npm-publish`
+environment, which only runs from `v*` tags can use. npm's trusted publisher
+names that environment, so a branch that edits `publish.yml` can't publish.
 
 ## License
 
