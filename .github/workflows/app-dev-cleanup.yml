@@ -13,7 +13,7 @@ name: App dev cleanup
 #       permissions:
 #         contents: read
 #         id-token: write
-#       uses: ErikBean/factory/.github/workflows/app-dev-cleanup.yml@<sha> # vX.Y.Z
+#       uses: ErikBean/factory/.github/workflows/app-dev-cleanup.yml@vX.Y.Z
 #       with:
 #         aws-account-id: ${{ vars.AWS_ACCOUNT_ID }}
 #         aws-region: ${{ vars.AWS_REGION }}

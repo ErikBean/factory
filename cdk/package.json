@@ -1,8 +1,13 @@
 {
   "name": "@favabean/factory-cdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "CDK constructs for factory-built apps: per-stage stacks behind the account's permissions boundary, and app patterns such as a static site",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ErikBean/factory.git",
+    "directory": "cdk"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {

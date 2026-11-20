@@ -2,14 +2,15 @@
 // role and a dev cleanup role per app, from one app list (apps.json). Adding an
 // app is one line there plus one admin deploy.
 //
-// Each role trusts only its app's default branch, through one of the
-// factory's reusable workflows. The sub claim pins the branch, and since only
-// reviewed code on that branch chooses which factory workflow and ref to call,
-// job_workflow_ref can name the workflow with any ref, and the app can bump
-// its SHA pin without a role change. job_workflow_ref also keeps the two roles
-// apart: the cleanup workflow can't deploy, and the deploy workflow can't
-// clean up. repository_id and repository_owner_id pin the repo even if it's
-// renamed or its name is reused.
+// Each role trusts only its app's default branch, running one of the
+// factory's reusable workflows at a release tag. The sub claim pins the
+// branch. job_workflow_ref pins the workflow and requires a v* tag, which only
+// the factory's admin can create and nobody can move (the release-tags
+// ruleset), so only released factory code ever holds these roles, whatever an
+// app's pin says. An app moves to a new release without a role change.
+// job_workflow_ref also keeps the two roles apart: the cleanup workflow can't
+// deploy, and the deploy workflow can't clean up. repository_id and
+// repository_owner_id pin the repo even if it's renamed or its name is reused.
 //
 // The provider is looked up, not created: there's one per account, and it
 // belongs to the account's setup (factory-skills#18). The lookup is the same
@@ -100,7 +101,7 @@ export class GitHubRolesStack extends Stack {
           ],
         },
         StringLike: {
-          [`${ISSUER}:job_workflow_ref`]: `${config.factoryRepo}/.github/workflows/${workflow}@*`,
+          [`${ISSUER}:job_workflow_ref`]: `${config.factoryRepo}/.github/workflows/${workflow}@refs/tags/v*`,
         },
       });
     };

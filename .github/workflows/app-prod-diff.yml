@@ -10,7 +10,7 @@ name: App production diff
 #       permissions:
 #         contents: read
 #         actions: read
-#       uses: ErikBean/factory/.github/workflows/app-prod-diff.yml@<sha> # vX.Y.Z
+#       uses: ErikBean/factory/.github/workflows/app-prod-diff.yml@vX.Y.Z
 on:
   workflow_call:
     inputs:
