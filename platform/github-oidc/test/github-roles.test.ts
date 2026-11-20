@@ -57,7 +57,7 @@ describe("roles", () => {
   test.each([
     ["factory-deploy-app-one", "app-deploy.yml"],
     ["factory-dev-cleanup-app-one", "app-dev-cleanup.yml"],
-  ])("%s trusts only app-one's main branch, pinned by IDs, running the factory's %s", (name, workflow) => {
+  ])("%s trusts only app-one's main branch, pinned by IDs, running the factory's %s at a release tag", (name, workflow) => {
     const { Condition } = trustOf(roles()[name]);
     expect(Condition).toEqual({
       StringEquals: {
@@ -66,15 +66,15 @@ describe("roles", () => {
         [`${ISSUER}:repository_owner_id`]: "10",
         [`${ISSUER}:sub`]: ["repo:octo/app-one:ref:refs/heads/main", "repo:octo@10/app-one@101:ref:refs/heads/main"],
       },
-      StringLike: { [`${ISSUER}:job_workflow_ref`]: `octo/factory/.github/workflows/${workflow}@*` },
+      StringLike: { [`${ISSUER}:job_workflow_ref`]: `octo/factory/.github/workflows/${workflow}@refs/tags/v*` },
     });
   });
 
-  test("no trust policy has a wildcard in its subject, and the only wildcard is a workflow's ref", () => {
+  test("no trust policy has a wildcard in its subject, and the only wildcard is the release tag's version", () => {
     for (const role of Object.values(roles())) {
       const { Condition } = trustOf(role);
       expect(JSON.stringify(Condition.StringEquals)).not.toContain("*");
-      expect(Object.values(Condition.StringLike)).toEqual([expect.stringMatching(/^octo\/factory\/\.github\/workflows\/[a-z-]+\.yml@\*$/)]);
+      expect(Object.values(Condition.StringLike)).toEqual([expect.stringMatching(/^octo\/factory\/\.github\/workflows\/[a-z-]+\.yml@refs\/tags\/v\*$/)]);
     }
   });
 
@@ -132,5 +132,28 @@ describe("app list", () => {
     const real = JSON.parse(readFileSync(join(__dirname, "..", "apps.json"), "utf8")) as PlatformConfig;
     expect(() => validate(real)).not.toThrow();
     expect(real.apps.map((a) => a.repo)).toContain("jello-world");
+  });
+});
+
+describe("which factory refs the roles accept", () => {
+  // IAM's StringLike: * matches any run of characters, including none.
+  const like = (pattern: string, value: string) =>
+    new RegExp(`^${pattern.replace(/[.+?^${}()|[\]\\/]/g, "\\$&").replace(/\*/g, ".*")}$`).test(value);
+  const accepted = (ref: string) => {
+    const { Condition } = trustOf(roles()["factory-deploy-app-one"]);
+    return like(Object.values(Condition.StringLike)[0] as string, `octo/factory/.github/workflows/app-deploy.yml@${ref}`);
+  };
+
+  test.each(["refs/tags/v0.2.0", "refs/tags/v1.0.0-rc.1"])("accepts the release tag %s", (ref) => {
+    expect(accepted(ref)).toBe(true);
+  });
+
+  test.each([
+    ["a commit SHA", "3d3c42e5aac5ba805825da76410c181273ba90b1"],
+    ["a branch", "refs/heads/main"],
+    ["a branch named like a tag", "refs/heads/v0.2.0"],
+    ["a tag that isn't a release", "refs/tags/latest"],
+  ])("refuses %s", (_name, ref) => {
+    expect(accepted(ref)).toBe(false);
   });
 });

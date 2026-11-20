@@ -3,17 +3,17 @@ name: App deploy
 # Called by a factory-built app's deploy workflow on each push to its default
 # branch, after app-ci.yml passes. Deploys the prod stage through the role
 # factory-deploy-<repo>, which platform/github-oidc creates. That role trusts
-# only the app's main branch running this workflow, at any ref the app pins.
+# only the app's main branch running this workflow at a factory release tag.
 #
 #   jobs:
 #     test:
-#       uses: ErikBean/factory/.github/workflows/app-ci.yml@<sha> # vX.Y.Z
+#       uses: ErikBean/factory/.github/workflows/app-ci.yml@vX.Y.Z
 #     deploy:
 #       needs: test
 #       permissions:
 #         contents: read
 #         id-token: write
-#       uses: ErikBean/factory/.github/workflows/app-deploy.yml@<sha> # vX.Y.Z
+#       uses: ErikBean/factory/.github/workflows/app-deploy.yml@vX.Y.Z
 #       with:
 #         aws-account-id: ${{ vars.AWS_ACCOUNT_ID }}
 #         aws-region: ${{ vars.AWS_REGION }}
