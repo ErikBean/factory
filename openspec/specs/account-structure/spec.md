@@ -90,9 +90,16 @@ Reasoning: SCPs don't affect the management account, only member accounts ([find
 
 ### Requirement: Interim management-account mode until the account quota allows member accounts
 
-While the organization's account quota leaves no room for member accounts, the management account SHALL serve as the agent, preview and production account, and the agent permission sets SHALL be assigned there to the dedicated agent user only. Requirements that need member accounts, SCPs, RCPs, declarative policies or budget actions are suspended until then.
+While the organization's account quota leaves no room for member accounts, the management account SHALL serve as the agent and production account, and the agent permission sets SHALL be assigned there to the dedicated agent user only. Requirements that need member accounts, SCPs, RCPs, declarative policies or budget actions are suspended until then.
+
+While the stages share this account, CI SHALL NOT deploy pull request previews, and no preview deploy role SHALL exist. A preview would deploy through the same `ci` bootstrap roles as production, so a pull request's own code could change production, which [app-environments](../app-environments/spec.md) rules out. Pull requests still show their production diff. Previews return with a separate preview account, when *CI deploys a preview for each pull request* applies again.
 
 Reasoning: [decision](https://github.com/ErikBean/research/blob/main/knowledge/projects/aws-agent-bootstrap/decisions/interim-management-account.md), after AWS declined to raise the quota ([finding](https://github.com/ErikBean/research/blob/main/knowledge/tech/aws-agent-guardrails/findings/new-org-account-quota-below-default.md)).
+
+#### Scenario: A pull request is opened during the interim
+
+- **WHEN** a pull request is opened while the stages share the management account
+- **THEN** no preview is deployed and no preview deploy role exists, and the pull request shows its production diff
 
 #### Scenario: Listing who holds the agent permission sets during the interim
 

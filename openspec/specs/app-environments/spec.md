@@ -6,7 +6,7 @@ How one app built by the factory moves from an agent's work to production across
 
 Reasoning: [decision](https://github.com/ErikBean/research/blob/main/knowledge/projects/aws-agent-bootstrap/decisions/app-environments.md), which links the research behind it.
 
-This spec says what an app's repo and the factory must achieve. The `factory-repo-setup` skill and the factory's stage skills, in ErikBean/factory-skills, implement it for each repo.
+This spec says what an app's repo and the factory must achieve. The factory implements it for each app: the construct library in `cdk/`, the reusable workflows in `.github/workflows/`, the roles in `platform/github-oidc/`, and the stage skills.
 
 ## Requirements
 
@@ -30,7 +30,7 @@ During a factory run, the implementer SHALL deploy the branch's `dev` stage to t
 
 ### Requirement: CI deploys a preview for each pull request
 
-For each open pull request, CI SHALL deploy the `preview` stage to the preview account through the app's preview deploy role, and post the preview's URL on the pull request. Only CI SHALL deploy to the preview account. The preview deploy role SHALL trust only pull request workflows from the app's own repository, SHALL carry the agent boundary, and SHALL be able to assume only the CDK bootstrap roles in the preview account.
+Except while previews are suspended because the stages share an account ([account-structure](../account-structure/spec.md), interim mode), for each open pull request, CI SHALL deploy the `preview` stage to the preview account through the app's preview deploy role, and post the preview's URL on the pull request. Only CI SHALL deploy to the preview account. The preview deploy role SHALL trust only pull request workflows from the app's own repository, SHALL carry the agent boundary, and SHALL be able to assume only the CDK bootstrap roles in the preview account.
 
 Before the first preview deploy role is created, the identity-perimeter RCP SHALL trust the developer's GitHub owner, as [security-baseline](../security-baseline/spec.md) requires. Previews are the first test of that statement.
 
