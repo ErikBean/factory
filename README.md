@@ -14,7 +14,7 @@ against surprise costs and security risks.
 | `platform/client/` | The developer's machine: Claude Code and AWS client settings, and the agents' GitHub token hook (was aws-agent-bootstrap's `client/`) | Moved in; dev-machine still to come |
 | `openspec/` | The requirements: account structure, agent and deploy permissions, app environments, agent client, spend controls, security baseline | Moved in from aws-agent-bootstrap |
 | `skills/` | The factory's agent skills, in a format any agent can use, with their tests (was factory-skills). Apps sync the stage skills from a factory release | Moved in; the repo-setup skill is out of date until `template/` replaces it |
-| `template/` | The starting point for a new app | Planned |
+| `template/` | The starting point for a new app: jello-world's setup with placeholders, filled in by `scripts/create-app.mjs` | Started |
 
 ## cdk
 
@@ -109,6 +109,16 @@ account from the admin profile and asks you to confirm it (`apps.json` names no
 account, so this public repo holds none), checks the IDs against GitHub, deploys with the admin's own credentials (not
 a CDK bootstrap role, since agents can use the dev bootstrap's), asks before any
 IAM change, and sets each app's `AWS_ACCOUNT_ID` and `AWS_REGION` variables.
+
+## New apps
+
+A new app takes one admin command, one agent step and one more admin command:
+
+1. **Admin:** `platform/github/new-app.sh <name>`, signed in to `gh` as yourself. It creates the public repo, adds it to the agents' GitHub App installation and token config, and gives it the rulesets (`platform/github/repo-rulesets.sh`: a pull request, a passing `test / test`, and the code owner's approval).
+2. **Agent**, in a new session so its token covers the repo: clone it, run `node scripts/create-app.mjs <clone> <name>` from a factory checkout of the release to pin, then commit and open the setup pull request. Also open a factory pull request adding the app to `platform/github-oidc/apps.json`. The script copies `template/`, fills in the name, owner and release, and syncs the stage skills.
+3. **Admin**, after the `apps.json` change merges: `platform/github-oidc/deploy-roles.sh <admin-profile>` creates the app's roles and sets its repo variables. Then review and merge the setup pull request; the merge deploys to production.
+
+`scripts/test-create-app.sh`, run in CI, creates a demo app this way and checks it installs, tests and synthesizes.
 
 ## Releases
 
