@@ -13,7 +13,7 @@ against surprise costs and security risks.
 | `platform/aws/` | The AWS account the agents work in: organization, access, permissions boundary, CDK bootstraps, spend controls, security baseline, and its runbook (was aws-agent-bootstrap) | Moved in |
 | `platform/client/` | The developer's machine: Claude Code and AWS client settings, and the agents' GitHub token hook (was aws-agent-bootstrap's `client/`) | Moved in; dev-machine still to come |
 | `openspec/` | The requirements: account structure, agent and deploy permissions, app environments, agent client, spend controls, security baseline | Moved in from aws-agent-bootstrap |
-| `skills/` | The factory's agent skills, in a format any agent can use, with their tests (was factory-skills). Apps sync the stage skills from a factory release | Moved in; the repo-setup skill is out of date until `template/` replaces it |
+| `skills/` | The factory's agent skills, in a format any agent can use, with their tests (was factory-skills). Apps sync the stage skills from a factory release | Moved in |
 | `template/` | The starting point for a new app: jello-world's setup with placeholders, filled in by `scripts/create-app.mjs` | Started |
 
 ## cdk

@@ -60,19 +60,14 @@ In Claude Code, skills in `~/.claude/skills/` take precedence over a project's s
 
 ## Start a new project
 
-[`factory-repo-setup`](factory-repo-setup/SKILL.md) is the skill to invoke first. Ask for it by name to set up a new repo, or one with little in it yet:
+[`factory-repo-setup`](factory-repo-setup/SKILL.md) is the skill to invoke first. Ask for it by name to set up a new app. It walks through the factory's [new-app flow](../README.md#new-apps) in seven steps:
 
-- A TypeScript AWS CDK app, OpenSpec and a `factory.config.yaml`. The app deploys as three stages: `dev` per branch in an agent account, `preview` per pull request in a preview account, and `prod` in production. `dev` and `preview` delete their data with their stacks.
-- CI that typechecks, tests and runs `cdk synth` on every pull request, and fails if any IAM role the app creates has no permissions boundary.
-- A GitHub Actions workflow that runs `cdk deploy` to production on every merge to `main`.
-- On every pull request, a preview deployed to the preview account with its URLs posted on the pull request, and destroyed when it closes along with the branch's `dev` stacks. Also a diff against the last production deploy, made without AWS credentials.
-- Rulesets on `main`, so changes only land through a pull request that passed CI and that you approved as its code owner. Agents can't approve their own pull requests, so only you can merge. A Claude Code hook also refuses agents' merge, approve and push-to-`main` commands, so an attempt fails fast with an explanation.
-- Three AWS roles that GitHub Actions assumes through OIDC, so no AWS keys are stored in GitHub. Only the repo's `main` branch can assume the production deploy role, and only its own pull requests the preview role; each can only assume CDK's bootstrap roles. A cleanup role in the agent account can only delete the app's `dev` stacks, and only the cleanup workflow on `main` can assume it.
-- Each AWS account's permissions boundary on every role: the deploy roles, and every role the app creates. The skill won't deploy to an account whose CDK bootstrap has no boundary.
+- **You run two admin commands,** one at a time, in your own terminal with your own sign-in. `platform/github/new-app.sh` creates the public repo, adds it to the agents' GitHub App and gives it the rulesets. `platform/github-oidc/deploy-roles.sh` creates its two AWS roles. Agents never hold an admin session.
+- **The agent creates the app** from the factory's `template/` with `scripts/create-app.mjs`. That's a `FactoryStack` and `StaticSite` from `@favabean/factory-cdk`, three workflows that call the factory's reusable workflows at a release tag, the merge guard and the pinned skills. Then it opens the setup pull request and the factory's `apps.json` change.
+- **It deploys and smoke-tests `dev`**, so you can look before you merge. Merging the setup pull request is the first production deploy.
+- **It reports the friction:** your steps and the time to the first production deploy.
 
-If the target AWS account is an organization's management account, where organization policies don't apply, it stops and asks you to confirm that's on purpose, that the agent's builder role is denied Identity Center, budget and trail changes, and that the agent user is separate from yours. It shows you the plan and waits for your yes before it creates anything on GitHub or AWS. By default it hands you the admin commands to run yourself, on AWS with your admin profile and on GitHub with your own login: creating the repo, adding it to the agents' GitHub App installation, setting its variables and adding its ruleset. So agents never hold admin credentials, and push and open pull requests only with their own narrower GitHub access.
-
-After that, use the factory in the new repo. The factory deploys and smoke-tests the branch's `dev` stage and opens a pull request. CI checks the pull request and deploys its preview, merging it deploys to production, and closing it destroys the preview and `dev`.
+After that, use the factory in the new repo. The factory deploys and smoke-tests the branch's `dev` stage and opens a pull request. CI checks it and shows its production diff, merging it deploys to production, and closing it destroys its `dev` stacks.
 
 ## Use
 
@@ -131,11 +126,11 @@ With no `remote`, notes go to a local git repo on the machine that ran the facto
 
 ## Develop
 
-`scripts/check.sh` lints the `factory-repo-setup` templates with shellcheck, `node --check`, cfn-lint and actionlint, and runs the tests in `tests/`. CI runs it on every pull request, and `main` only takes changes through a pull request that passed it. It needs `node` on the PATH, plus the linters pinned in `tests/requirements.txt`:
+`check.sh` lints the `factory-repo-setup` templates and the factory's workflows with shellcheck, `node --check`, cfn-lint and actionlint, and runs the tests in `tests/`. CI runs it on every pull request, and `main` only takes changes through a pull request that passed it. It needs `node` on the PATH, plus the linters pinned in `skills/tests/requirements.txt`:
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r tests/requirements.txt
-PATH="$PWD/.venv/bin:$PATH" scripts/check.sh
+python3 -m venv .venv && .venv/bin/pip install -r skills/tests/requirements.txt   # from the repo root
+PATH="$PWD/.venv/bin:$PATH" skills/check.sh
 ```
 
 ## Status

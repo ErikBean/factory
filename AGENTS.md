@@ -2,7 +2,7 @@
 
 This is the software factory: the platform it runs on, and the library, workflows and roles every app it builds shares. See the [README](README.md) for the layout.
 
-- `openspec/`: requirements as [OpenSpec](https://github.com/Fission-AI/OpenSpec) specs. `specs/` is what must be true now; `changes/` holds proposed changes. Run `npx openspec validate --specs --strict` after changing one.
+- `openspec/`: requirements as [OpenSpec](https://github.com/Fission-AI/OpenSpec) specs. `specs/` is what must be true now; `changes/` holds proposed changes. Run `npx openspec validate --specs` after changing one, as CI does. (Strict mode also warns about long requirements, which aren't split yet.)
 - `platform/aws/`: the AWS account the agents work in, set up once per account by the scripts there, plus [`RUNBOOK.md`](platform/aws/RUNBOOK.md) for steps that can't be automated.
 - `platform/client/`: the developer's machine. `platform/github-oidc/` and `platform/github/`: each app's GitHub OIDC roles and the repos' GitHub rules.
 - `cdk/`: the construct library apps install from npm. `.github/workflows/app-*.yml`: the reusable workflows apps call by release tag.
