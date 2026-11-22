@@ -128,10 +128,11 @@ describe("app list", () => {
     expect(() => validate({ ...config, ...change })).toThrow(error);
   });
 
-  test("apps.json is valid and lists jello-world", () => {
-    const real = JSON.parse(readFileSync(join(__dirname, "..", "apps.json"), "utf8")) as PlatformConfig;
-    expect(() => validate(real)).not.toThrow();
-    expect(real.apps.map((a) => a.repo)).toContain("jello-world");
+  test("apps.json is valid with an account passed in, lists jello-world, and names no account itself", () => {
+    const real = JSON.parse(readFileSync(join(__dirname, "..", "apps.json"), "utf8"));
+    expect(real).not.toHaveProperty("account");
+    expect(() => validate({ ...real, account: "111122223333" })).not.toThrow();
+    expect(real.apps.map((a: { repo: string }) => a.repo)).toContain("jello-world");
   });
 });
 

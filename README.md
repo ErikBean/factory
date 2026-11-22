@@ -102,8 +102,9 @@ To add an app, add a line to `apps.json` with its repo ID
 platform/github-oidc/deploy-roles.sh <admin-profile>
 ```
 
-It runs only from a clean checkout of `main` as it is on GitHub, checks the
-IDs against GitHub, deploys with the admin's own credentials (not
+It runs only from a clean checkout of `main` as it is on GitHub, takes the
+account from the admin profile and asks you to confirm it (`apps.json` names no
+account, so this public repo holds none), checks the IDs against GitHub, deploys with the admin's own credentials (not
 a CDK bootstrap role, since agents can use the dev bootstrap's), asks before any
 IAM change, and sets each app's `AWS_ACCOUNT_ID` and `AWS_REGION` variables.
 

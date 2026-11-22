@@ -61,7 +61,7 @@ export function validate(config: PlatformConfig): void {
     // IAM role names are at most 64 characters.
     if (cleanupRoleName(app.repo).length > 64) throw new Error(`${app.repo}: the name is too long for its role names`);
   }
-  if (!/^[0-9]{12}$/.test(config.account)) throw new Error("account must be a 12-digit AWS account ID");
+  if (!/^[0-9]{12}$/.test(config.account)) throw new Error("account must be a 12-digit AWS account ID: pass -c account=<id>, as deploy-roles.sh does");
   if (!Number.isSafeInteger(config.owner.id) || config.owner.id <= 0) throw new Error("owner.id must be the owner's numeric ID");
 }
 
