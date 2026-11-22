@@ -4,7 +4,7 @@
   "description": "GitHub OIDC deploy and dev cleanup roles for every factory-built app in an account, from one app list",
   "license": "Apache-2.0",
   "scripts": {
-    "test": "tsc --noEmit -p tsconfig.json && jest && cdk synth --quiet"
+    "test": "tsc --noEmit -p tsconfig.json && jest && cdk synth --quiet -c account=111122223333"
   },
   "devDependencies": {
     "@swc/core": "^1.15.0",

@@ -20,12 +20,13 @@ gh() { env -u GH_TOKEN -u GITHUB_TOKEN gh "$@"; }
 login="$(gh api user --jq .login)" || { echo "gh isn't signed in as you: run gh auth login" >&2; exit 1; }
 echo "GitHub: $login"
 config() { node -p "const c = require('./apps.json'); $1"; }
-account="$(config c.account)"
 region="$(config c.region)"
 owner="$(config c.owner.name)"
-signed_in="$(aws sts get-caller-identity --profile "$profile" --query Account --output text)"
-[ "$signed_in" = "$account" ] || { echo "Profile $profile is account $signed_in, but apps.json says $account" >&2; exit 1; }
-echo "AWS: $account ($profile)"
+# The account comes from the profile, not from apps.json, so this public repo
+# names no real account. Confirm it before anything changes.
+account="$(aws sts get-caller-identity --profile "$profile" --query Account --output text)"
+read -r -p "Deploy the factory's GitHub roles to account $account ($profile)? [y/N] " answer
+[ "$answer" = "y" ] || { echo "Stopped; nothing changed." >&2; exit 1; }
 
 [ "$(gh api "users/$owner" --jq .id)" = "$(config c.owner.id)" ] || { echo "apps.json has the wrong ID for $owner" >&2; exit 1; }
 apps="$(config "c.apps.map(a => a.repo + ' ' + a.id).join('\n')")"
@@ -43,7 +44,7 @@ main="$(gh api "repos/$factory/commits/main" --jq .sha)"
 
 # No install scripts: they'd run as you, next to your AWS admin sign-in.
 (cd ../.. && npm ci --ignore-scripts)
-npx cdk deploy --profile "$profile" --require-approval any-change
+npx cdk deploy --profile "$profile" --require-approval any-change -c account="$account"
 
 while read -r repo _; do
   echo "== $owner/$repo"

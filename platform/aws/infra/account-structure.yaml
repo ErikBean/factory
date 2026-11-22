@@ -1,0 +1,197 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  The agent account and the production account, each a member account in its own
+  OU. The agent permission sets are assigned to the agent account only, and the
+  admin permission set to both. Deploy in the management account.
+  Implements openspec/specs/account-structure/spec.md.
+
+Parameters:
+  OrganizationRootId:
+    Type: String
+    AllowedPattern: "^r-[a-z0-9]{4,32}$"
+    Description: The organization's root ID, from `aws organizations list-roots`.
+  AgentAccountName:
+    Type: String
+    Default: agents
+  AgentAccountEmail:
+    Type: String
+    Description: Root email for the new account. It must not be used by any other AWS account.
+  ProductionAccountName:
+    Type: String
+    Default: production
+  ProductionAccountEmail:
+    Type: String
+    Description: Root email for the production account. It must not be used by any other AWS account.
+  PreviewAccountName:
+    Type: String
+    Default: preview
+  PreviewAccountEmail:
+    Type: String
+    Description: Root email for the preview account. It must not be used by any other AWS account.
+  IdentityCenterInstanceArn:
+    Type: String
+    Description: From `aws sso-admin list-instances`.
+  BuilderPermissionSetArn:
+    Type: String
+    Description: The Agent-Builder permission set.
+  ReadOnlyPermissionSetArn:
+    Type: String
+    Description: The Agent-ReadOnly permission set.
+  AdminPermissionSetArn:
+    Type: String
+    Description: The developer's Admin permission set.
+  AgentPrincipalId:
+    Type: String
+    Description: >-
+      The dedicated Identity Center user (or group) that agents sign in as. Gets only
+      Agent-Builder and Agent-ReadOnly in the agent account.
+  AdminPrincipalId:
+    Type: String
+    Description: >-
+      The developer's own Identity Center user (or group). Gets Admin in both member
+      accounts. Must not be the agent principal.
+  PrincipalType:
+    Type: String
+    AllowedValues: [USER, GROUP]
+    Default: USER
+
+Rules:
+  AgentIsNotAdmin:
+    Assertions:
+      - Assert: !Not [!Equals [!Ref AgentPrincipalId, !Ref AdminPrincipalId]]
+        AssertDescription: >-
+          The agent principal must not be the admin principal, or agents could get Admin
+          through the cached Identity Center token. See openspec/specs/agent-client/spec.md.
+
+Resources:
+  AgentsOu:
+    Type: AWS::Organizations::OrganizationalUnit
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: Agents
+      ParentId: !Ref OrganizationRootId
+
+  # Retained so that deleting or replacing the stack never closes the account.
+  AgentAccount:
+    Type: AWS::Organizations::Account
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AccountName: !Ref AgentAccountName
+      Email: !Ref AgentAccountEmail
+      ParentIds: [!Ref AgentsOu]
+
+  ProductionOu:
+    Type: AWS::Organizations::OrganizationalUnit
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: Production
+      ParentId: !Ref OrganizationRootId
+
+  # Retained for the same reason as the agent account.
+  ProductionAccount:
+    Type: AWS::Organizations::Account
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AccountName: !Ref ProductionAccountName
+      Email: !Ref ProductionAccountEmail
+      ParentIds: [!Ref ProductionOu]
+
+  # Pull request previews, deployed only by CI. See
+  # openspec/specs/app-environments/spec.md.
+  PreviewOu:
+    Type: AWS::Organizations::OrganizationalUnit
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: Preview
+      ParentId: !Ref OrganizationRootId
+
+  # Retained for the same reason as the agent account.
+  PreviewAccount:
+    Type: AWS::Organizations::Account
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AccountName: !Ref PreviewAccountName
+      Email: !Ref PreviewAccountEmail
+      ParentIds: [!Ref PreviewOu]
+
+  BuilderAssignment:
+    Type: AWS::SSO::Assignment
+    Properties:
+      InstanceArn: !Ref IdentityCenterInstanceArn
+      PermissionSetArn: !Ref BuilderPermissionSetArn
+      PrincipalId: !Ref AgentPrincipalId
+      PrincipalType: !Ref PrincipalType
+      TargetId: !GetAtt AgentAccount.AccountId
+      TargetType: AWS_ACCOUNT
+
+  ReadOnlyAssignment:
+    Type: AWS::SSO::Assignment
+    Properties:
+      InstanceArn: !Ref IdentityCenterInstanceArn
+      PermissionSetArn: !Ref ReadOnlyPermissionSetArn
+      PrincipalId: !Ref AgentPrincipalId
+      PrincipalType: !Ref PrincipalType
+      TargetId: !GetAtt AgentAccount.AccountId
+      TargetType: AWS_ACCOUNT
+
+  AgentAccountAdminAssignment:
+    Type: AWS::SSO::Assignment
+    Properties:
+      InstanceArn: !Ref IdentityCenterInstanceArn
+      PermissionSetArn: !Ref AdminPermissionSetArn
+      PrincipalId: !Ref AdminPrincipalId
+      PrincipalType: !Ref PrincipalType
+      TargetId: !GetAtt AgentAccount.AccountId
+      TargetType: AWS_ACCOUNT
+
+  ProductionAccountAdminAssignment:
+    Type: AWS::SSO::Assignment
+    Properties:
+      InstanceArn: !Ref IdentityCenterInstanceArn
+      PermissionSetArn: !Ref AdminPermissionSetArn
+      PrincipalId: !Ref AdminPrincipalId
+      PrincipalType: !Ref PrincipalType
+      TargetId: !GetAtt ProductionAccount.AccountId
+      TargetType: AWS_ACCOUNT
+
+  # Agents may only read in the preview account, to debug a failed preview.
+  # Agent-Builder is deliberately not assigned there.
+  PreviewReadOnlyAssignment:
+    Type: AWS::SSO::Assignment
+    Properties:
+      InstanceArn: !Ref IdentityCenterInstanceArn
+      PermissionSetArn: !Ref ReadOnlyPermissionSetArn
+      PrincipalId: !Ref AgentPrincipalId
+      PrincipalType: !Ref PrincipalType
+      TargetId: !GetAtt PreviewAccount.AccountId
+      TargetType: AWS_ACCOUNT
+
+  PreviewAccountAdminAssignment:
+    Type: AWS::SSO::Assignment
+    Properties:
+      InstanceArn: !Ref IdentityCenterInstanceArn
+      PermissionSetArn: !Ref AdminPermissionSetArn
+      PrincipalId: !Ref AdminPrincipalId
+      PrincipalType: !Ref PrincipalType
+      TargetId: !GetAtt PreviewAccount.AccountId
+      TargetType: AWS_ACCOUNT
+
+Outputs:
+  AgentAccountId:
+    Value: !GetAtt AgentAccount.AccountId
+  AgentsOuId:
+    Value: !Ref AgentsOu
+  ProductionAccountId:
+    Value: !GetAtt ProductionAccount.AccountId
+  ProductionOuId:
+    Value: !Ref ProductionOu
+  PreviewAccountId:
+    Value: !GetAtt PreviewAccount.AccountId
+  PreviewOuId:
+    Value: !Ref PreviewOu

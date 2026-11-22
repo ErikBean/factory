@@ -10,7 +10,9 @@ against surprise costs and security risks.
 | `cdk/` | `@favabean/factory-cdk`, the construct library apps install from npm | Started |
 | `.github/workflows/app-*.yml` | Reusable workflows that apps call by release tag. GitHub only runs reusable workflows from `.github/workflows/`, so they live there rather than in a folder of their own | Started |
 | `platform/github-oidc/` | Every app's GitHub OIDC deploy and dev cleanup roles, from one app list | Started |
-| `platform/` (the rest) | Account setup, permissions boundary, the agents' GitHub token hook (from aws-agent-bootstrap, dev-machine and agent-github) | Planned |
+| `platform/aws/` | The AWS account the agents work in: organization, access, permissions boundary, CDK bootstraps, spend controls, security baseline, and its runbook (was aws-agent-bootstrap) | Moved in |
+| `platform/client/` | The developer's machine: Claude Code and AWS client settings, and the agents' GitHub token hook (was aws-agent-bootstrap's `client/`) | Moved in; dev-machine still to come |
+| `openspec/` | The requirements: account structure, agent and deploy permissions, app environments, agent client, spend controls, security baseline | Moved in from aws-agent-bootstrap |
 | `skills/` | The factory's agent skills (from factory-skills) | Planned |
 | `template/` | The starting point for a new app | Planned |
 
@@ -102,8 +104,9 @@ To add an app, add a line to `apps.json` with its repo ID
 platform/github-oidc/deploy-roles.sh <admin-profile>
 ```
 
-It runs only from a clean checkout of `main` as it is on GitHub, checks the
-IDs against GitHub, deploys with the admin's own credentials (not
+It runs only from a clean checkout of `main` as it is on GitHub, takes the
+account from the admin profile and asks you to confirm it (`apps.json` names no
+account, so this public repo holds none), checks the IDs against GitHub, deploys with the admin's own credentials (not
 a CDK bootstrap role, since agents can use the dev bootstrap's), asks before any
 IAM change, and sets each app's `AWS_ACCOUNT_ID` and `AWS_REGION` variables.
 
