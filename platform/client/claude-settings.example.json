@@ -1,0 +1,86 @@
+{
+  "env": {
+    "AWS_CONFIG_FILE": "/home/YOUR_USER/.aws/agent-config",
+    "AWS_PROFILE": "agent-builder"
+  },
+  "permissions": {
+    "disableBypassPermissionsMode": "disable",
+    "deny": [
+      "Bash(aws configure export-credentials *)",
+      "Bash(aws sso get-role-credentials *)",
+      "Bash(aws sts get-session-token *)"
+    ],
+    "ask": [
+      "Read(~/.aws/**)",
+      "Bash(*.aws/*)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "*.amazonaws.com",
+        "github.com",
+        "api.github.com",
+        "*.githubusercontent.com",
+        "registry.npmjs.org"
+      ]
+    },
+    "filesystem": {
+      "allowWrite": [
+        "~/.npm",
+        "~/.local/share/factory-observer",
+        "~/.local/state/factory-observer"
+      ]
+    },
+    "credentials": {
+      "files": [
+        {
+          "path": "~/.aws/sso/cache/ADMIN_SESSION_TOKEN_FILE.json",
+          "mode": "deny"
+        },
+        {
+          "path": "~/.ssh/YOUR_SSH_KEY",
+          "mode": "deny"
+        },
+        {
+          "path": "~/.config/agent-github/app.pem",
+          "mode": "deny"
+        }
+      ],
+      "envVars": [
+        {
+          "name": "SSH_AUTH_SOCK",
+          "mode": "deny"
+        }
+      ]
+    }
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/YOUR_USER/.claude/hooks/agent-github-token.mjs session-start",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/YOUR_USER/.claude/hooks/agent-github-token.mjs pre-bash",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
