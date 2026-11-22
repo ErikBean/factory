@@ -130,6 +130,7 @@ With no `remote`, notes go to a local git repo on the machine that ran the facto
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r skills/tests/requirements.txt   # from the repo root
+skills/tests/install-actionlint.sh .venv/bin   # from factory #17
 PATH="$PWD/.venv/bin:$PATH" skills/check.sh
 ```
 
