@@ -21,4 +21,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # No real account IDs, emails or keys in tracked files (AGENTS.md).
+      - run: python3 scripts/check-private.py
+      - run: npx --no-install openspec validate --specs --no-interactive
       - run: npm pack --dry-run --workspace cdk

@@ -1,12 +1,14 @@
 schema: spec-driven
 
 context: |
-  What this repo is: requirements for an AWS account, and the developer's
-  machine, where one developer lets AI coding agents work without surprise
-  costs, security holes or a mess to clean up, plus the code that sets up the
-  account itself. Per-repo setup follows these specs from the factory-repo-setup
-  skill in ErikBean/factory-skills. There's no app code here. Starting over with
-  a new account should be this repo's deploys plus a short runbook.
+  What this repo is: the software factory. Its specs are requirements for the
+  AWS account and the developer's machine where one developer lets AI coding
+  agents work without surprise costs, security holes or a mess to clean up,
+  and for how the factory's apps move from an agent's branch to production.
+  The code that meets them lives beside them: platform/aws/ sets up the
+  account, platform/client/ the machine, platform/github-oidc/ each app's
+  roles, cdk/ the construct library and .github/workflows/app-*.yml the
+  reusable workflows. App code lives in each app's own repo.
 
   The research and decisions behind each requirement live in
   https://github.com/ErikBean/research, under knowledge/tech/aws-agent-guardrails/

@@ -1,10 +1,10 @@
 # Runbook
 
-Steps for building the account that aren't fully automated. Run them from a clone of this repo, signed in to the management account with an admin role.
+Steps for building the account that aren't fully automated. Run them from `platform/aws/` in a clone of [ErikBean/factory](https://github.com/ErikBean/factory), signed in to the management account with an admin role.
 
 ## Interim: work in the management account
 
-Use this section instead of the rest of the runbook while the organization's account quota leaves no room for member accounts. It implements the interim requirement in [`account-structure`](openspec/specs/account-structure/spec.md). Check the quota with:
+Use this section instead of the rest of the runbook while the organization's account quota leaves no room for member accounts. It implements the interim requirement in [`account-structure`](../../openspec/specs/account-structure/spec.md). Check the quota with:
 
 ```bash
 aws service-quotas get-service-quota --service-code organizations --quota-code L-E619E033 --region us-east-1
@@ -12,7 +12,7 @@ aws service-quotas get-service-quota --service-code organizations --quota-code L
 
 Run everything with your Admin profile in the management account, in this order:
 
-1. **Create the agent user** in the IAM Identity Center console, as [`agent-client`](openspec/specs/agent-client/spec.md) describes, if it doesn't exist yet. Fill in `config.local/account-structure.env`, including `AGENT_PRINCIPAL_ID` and `ADMIN_PRINCIPAL_ID`.
+1. **Create the agent user** in the IAM Identity Center console, as [`agent-client`](../../openspec/specs/agent-client/spec.md) describes, if it doesn't exist yet. Fill in `config.local/account-structure.env`, including `AGENT_PRINCIPAL_ID` and `ADMIN_PRINCIPAL_ID`.
 2. **Remove the agent permission sets from your own user** in the management account. Until then, your Identity Center token reaches both Admin and the builder:
 
    ```bash
@@ -55,7 +55,7 @@ Until then, re-request the quota from time to time: AWS raises it gradually as t
 
 ## Create the agent, preview and production accounts
 
-This implements [`account-structure`](openspec/specs/account-structure/spec.md): a member account used only by agents, in an `Agents` OU; a preview account for pull request previews that only CI deploys to, in a `Preview` OU; and a production account shared by every app, in a `Production` OU. Agent-Builder is assigned to the agent account only, and Agent-ReadOnly to the agent and preview accounts. The admin permission set is assigned to all three.
+This implements [`account-structure`](../../openspec/specs/account-structure/spec.md): a member account used only by agents, in an `Agents` OU; a preview account for pull request previews that only CI deploys to, in a `Preview` OU; and a production account shared by every app, in a `Production` OU. Agent-Builder is assigned to the agent account only, and Agent-ReadOnly to the agent and preview accounts. The admin permission set is assigned to all three.
 
 A new organization may be limited to fewer accounts than this needs. Check before deploying:
 
@@ -80,7 +80,7 @@ The value must be at least the number of accounts already in the organization pl
    | `ORGANIZATION_ROOT_ID` | `aws organizations list-roots --query "Roots[0].Id"` |
    | `IDENTITY_CENTER_INSTANCE_ARN` | `aws sso-admin list-instances --query "Instances[0].InstanceArn"` |
    | `BUILDER_PERMISSION_SET_ARN`, `READONLY_PERMISSION_SET_ARN`, `ADMIN_PERMISSION_SET_ARN` | `aws sso-admin list-permission-sets --instance-arn <instance-arn>`, then `aws sso-admin describe-permission-set` on each to find `Agent-Builder`, `Agent-ReadOnly` and `Admin` |
-   | `AGENT_PRINCIPAL_ID`, `ADMIN_PRINCIPAL_ID` | `aws identitystore list-users --identity-store-id <store-id>`, where the store ID is in `list-instances`. The agent principal is the dedicated agent user; see [`agent-client`](openspec/specs/agent-client/spec.md). The admin principal is your own user. They must differ, and the stack refuses to deploy if they don't. |
+   | `AGENT_PRINCIPAL_ID`, `ADMIN_PRINCIPAL_ID` | `aws identitystore list-users --identity-store-id <store-id>`, where the store ID is in `list-instances`. The agent principal is the dedicated agent user; see [`agent-client`](../../openspec/specs/agent-client/spec.md). The admin principal is your own user. They must differ, and the stack refuses to deploy if they don't. |
 
    `AGENT_ACCOUNT_EMAIL`, `PREVIEW_ACCOUNT_EMAIL` and `PRODUCTION_ACCOUNT_EMAIL` must each be an address no other AWS account uses. A plus-address of an inbox you already read works.
 
@@ -120,7 +120,7 @@ The new accounts' root users have no password. Leave it that way. Use the manage
 
 ## Put CDK deploys under the agent boundary
 
-This implements [`deploy-permissions`](openspec/specs/deploy-permissions/spec.md) in every member account. Run it after the accounts exist and your admin profiles point at them.
+This implements [`deploy-permissions`](../../openspec/specs/deploy-permissions/spec.md) in every member account. Run it after the accounts exist and your admin profiles point at them.
 
 1. **Deploy the boundary and bootstrap CDK** in each member account:
 
@@ -151,7 +151,7 @@ This implements [`deploy-permissions`](openspec/specs/deploy-permissions/spec.md
 
 ## Set the agent permission sets
 
-This implements [`agent-permissions`](openspec/specs/agent-permissions/spec.md). The `Agent-Builder` permission set keeps AWS's `PowerUserAccess` managed policy, which grants no IAM role or policy management and no `iam:PassRole`. Its inline policy, in `infra/agent-builder-inline-policy.json`, adds:
+This implements [`agent-permissions`](../../openspec/specs/agent-permissions/spec.md). The `Agent-Builder` permission set keeps AWS's `PowerUserAccess` managed policy, which grants no IAM role or policy management and no `iam:PassRole`. Its inline policy, in `infra/agent-builder-inline-policy.json`, adds:
 
 - A deny on AWS Marketplace subscriptions.
 - `iam:PassRole` for roles under `/agent/`, only to the services the spec allows.
@@ -164,11 +164,11 @@ From the management account:
 scripts/apply-agent-permissions.sh
 ```
 
-It runs `scripts/test-agent-permissions.sh` first, which simulates `PowerUserAccess` plus the inline policy against the spec's scenarios, and applies the policy only if every case passes. It then sets both `Agent-Builder` and `Agent-ReadOnly` to 4-hour sessions, as [`agent-client`](openspec/specs/agent-client/spec.md) requires, reprovisions them to every account they're assigned to, and prints each one's name and session duration. To allow another service, change the spec first, then the `iam:PassedToService` list in the policy.
+It runs `scripts/test-agent-permissions.sh` first, which simulates `PowerUserAccess` plus the inline policy against the spec's scenarios, and applies the policy only if every case passes. It then sets both `Agent-Builder` and `Agent-ReadOnly` to 4-hour sessions, as [`agent-client`](../../openspec/specs/agent-client/spec.md) requires, reprovisions them to every account they're assigned to, and prints each one's name and session duration. To allow another service, change the spec first, then the `iam:PassedToService` list in the policy.
 
 ## Set up the spend controls
 
-This implements [`spend-controls`](openspec/specs/spend-controls/spec.md). Run both from the management account, after the account-structure stack exists. Add `BUDGET_ALERT_EMAIL` to `config.local/account-structure.env` first.
+This implements [`spend-controls`](../../openspec/specs/spend-controls/spec.md). Run both from the management account, after the account-structure stack exists. Add `BUDGET_ALERT_EMAIL` to `config.local/account-structure.env` first.
 
 1. **The always-on SCP.** It limits every member account to `us-east-1` and `us-west-2`, and denies EC2 instances, Bedrock model use and the fixed-cost services:
 
@@ -195,7 +195,7 @@ This implements [`spend-controls`](openspec/specs/spend-controls/spec.md). Run b
 
 ## Set up the security baseline
 
-This implements [`security-baseline`](openspec/specs/security-baseline/spec.md). Run it while the member accounts have no workloads, because the RCP is tested by attaching it to empty accounts.
+This implements [`security-baseline`](../../openspec/specs/security-baseline/spec.md). Run it while the member accounts have no workloads, because the RCP is tested by attaching it to empty accounts.
 
 1. **Enable the organization policy types.** Run this before *any* SCP, RCP or declarative policy in this runbook, including the boundary and spend-control SCPs above. It's safe to rerun:
 

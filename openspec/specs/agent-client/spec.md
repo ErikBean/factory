@@ -6,7 +6,7 @@ How the developer's machine is set up so AI coding agents, such as Claude Code, 
 
 Reasoning: [client setup decision](https://github.com/ErikBean/research/blob/main/knowledge/projects/aws-agent-bootstrap/decisions/agent-client-setup.md) and [GitHub access decision](https://github.com/ErikBean/research/blob/main/knowledge/projects/aws-agent-bootstrap/decisions/agent-github-access.md), which link the research behind them.
 
-Example files: [`client/claude-settings.example.json`](../../../client/claude-settings.example.json) and [`client/aws-agent-config.example`](../../../client/aws-agent-config.example).
+Example files: [`platform/client/claude-settings.example.json`](../../../platform/client/claude-settings.example.json) and [`platform/client/aws-agent-config.example`](../../../platform/client/aws-agent-config.example).
 
 ## Requirements
 

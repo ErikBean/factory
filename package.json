@@ -9,5 +9,8 @@
   "scripts": {
     "build": "npm run build --workspaces",
     "test": "npm test --workspaces"
+  },
+  "devDependencies": {
+    "@fission-ai/openspec": "2.0.0"
   }
 }

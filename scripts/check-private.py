@@ -28,8 +28,10 @@ PATTERNS = {
 # Addresses that identify no one.
 SAFE_EMAIL = re.compile(r"@(example\.(com|org|net)|users\.noreply\.github\.com|anthropic\.com)$", re.I)
 
-# This file describes the patterns, so it is the one file not scanned.
+# This file describes the patterns, so it is not scanned. Neither are
+# lockfiles: npm writes third-party package metadata into them.
 SELF = "scripts/check-private.py"
+SKIP = {SELF, "package-lock.json"}
 
 
 def git(*args):
@@ -39,10 +41,10 @@ def git(*args):
 def files_to_scan(staged):
     if staged:
         names = git("diff", "--cached", "--name-only", "--diff-filter=ACMR").split("\n")
-        return [(n, git("show", f":{n}")) for n in names if n and n != SELF]
+        return [(n, git("show", f":{n}")) for n in names if n and n not in SKIP and not n.endswith("/package-lock.json")]
     result = []
     for n in git("ls-files").split("\n"):
-        if n and n != SELF:
+        if n and n not in SKIP and not n.endswith("/package-lock.json"):
             try:
                 result.append((n, open(n, encoding="utf-8").read()))
             except (UnicodeDecodeError, FileNotFoundError):

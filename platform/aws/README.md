@@ -1,15 +1,14 @@
-# aws-agent-bootstrap
+# platform/aws
 
-Requirements and account-level setup for an AWS account where one developer lets AI coding agents, such as Claude Code, create things without surprise costs, security holes or a mess to clean up.
+The AWS account where one developer lets AI coding agents, such as Claude Code, create things without surprise costs, security holes or a mess to clean up: the organization, the agent and admin access, the permissions boundary and its CDK bootstraps, spend controls and the security baseline.
 
-It's a reference for other projects and tools. The specs say what a safe agent account and machine look like. The code here sets up the account itself, once per account. Setting up each project repo, such as its deploy role and CI, is done by the `factory-repo-setup` skill in [ErikBean/factory-skills](https://github.com/ErikBean/factory-skills), following these specs. There's no app code here.
+This was [ErikBean/aws-agent-bootstrap](https://github.com/ErikBean/aws-agent-bootstrap), moved into the factory unchanged apart from paths. Its history stays there.
 
-- Requirements: [`openspec/specs/`](openspec/specs)
-- Research and decisions behind them: [ErikBean/research](https://github.com/ErikBean/research/tree/main/knowledge/tech/aws-agent-guardrails)
+- Requirements: the factory's [`openspec/specs/`](../../openspec/specs), especially [`account-structure`](../../openspec/specs/account-structure/spec.md), [`deploy-permissions`](../../openspec/specs/deploy-permissions/spec.md), [`agent-permissions`](../../openspec/specs/agent-permissions/spec.md), [`spend-controls`](../../openspec/specs/spend-controls/spec.md) and [`security-baseline`](../../openspec/specs/security-baseline/spec.md).
+- Code: [`infra/`](infra) holds the CloudFormation templates, deployed by the scripts in [`scripts/`](scripts). Run the scripts from this folder. Real account values are read from gitignored config in `config.local/`.
+- Manual steps: [`RUNBOOK.md`](RUNBOOK.md).
+- The developer's machine: [`../client/`](../client). Each app's GitHub OIDC roles: [`../github-oidc/`](../github-oidc).
 
-- Code: [`infra/`](infra) holds the CloudFormation templates, deployed by the scripts in [`scripts/`](scripts). Real account values are read from gitignored config in `config.local/`.
-- Manual steps: [`RUNBOOK.md`](RUNBOOK.md)
+Status: `account-structure`, `deploy-permissions` and `agent-permissions` have code. Until the organization's account quota allows member accounts, the runbook's interim section runs agents and apps in the management account.
 
-Status: [`account-structure`](openspec/specs/account-structure/spec.md), [`deploy-permissions`](openspec/specs/deploy-permissions/spec.md) and [`agent-permissions`](openspec/specs/agent-permissions/spec.md) have code. Until the organization's account quota allows member accounts, the runbook's interim section runs agents and apps in the management account.
-
-This repo is public and contains no values from a real account. See [AGENTS.md](AGENTS.md) for how that is kept true.
+This repo is public and contains no values from a real account. See the factory's [AGENTS.md](../../AGENTS.md) for how that is kept true.

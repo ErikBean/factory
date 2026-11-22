@@ -2,3 +2,11 @@ node_modules/
 dist/
 cdk.out/
 *.tgz
+
+# Private values for a real account stay out of git. See AGENTS.md.
+*.local.*
+.env
+.env.*
+config.local/
+__pycache__/
+.venv/
