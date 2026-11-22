@@ -127,7 +127,8 @@ template together. Merging to `main` on its own reaches no app. In short: an
 agent opens a PR bumping `cdk/package.json`'s version; after it merges, the
 admin runs [`platform/github/release.sh`](platform/github/release.sh), which
 checks `main`, creates the release, waits for the package to be staged on npm
-and offers to approve it. [RELEASING.md](RELEASING.md) has the steps, what
+and offers to approve it. [CHANGELOG.md](CHANGELOG.md) says what each
+release changed and what apps must do to move to it. [RELEASING.md](RELEASING.md) has the steps, what
 each checks, moving apps to a release, and what to do when one goes wrong.
 
 [`platform/github/release-tags.sh`](platform/github/release-tags.sh), run

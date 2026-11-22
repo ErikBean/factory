@@ -4,9 +4,10 @@
 # merged. It does the admin's part of a release (see RELEASING.md):
 #
 #   1. Checks main is clean and up to date with GitHub, that CI passed on it,
-#      and that neither the tag nor the npm version exists yet.
+#      that CHANGELOG.md has the version's section, and that neither the tag
+#      nor the npm version exists yet.
 #   2. Creates the release v<version> from cdk/package.json, at main's full
-#      commit SHA, after you confirm.
+#      commit SHA, with the changelog section as its notes, after you confirm.
 #   3. Waits for publish.yml to stage the package on npm, and prints its stage
 #      ID and what to check.
 #   4. Offers to run `npm stage approve` for you (your npm 2FA), then waits
@@ -41,9 +42,12 @@ sha="$(git rev-parse HEAD)"
 ci="$(gh api "repos/$repo/commits/$sha/check-runs" --jq '[.check_runs[] | select(.name == "test")][0].conclusion // "none"')"
 [ "$ci" = success ] || stop "CI's test check on $sha is '$ci', not success"
 if npm view "$package@$version" version >/dev/null 2>&1; then stop "$package@$version is already on npm: bump the version in a PR"; fi
+# The version's CHANGELOG.md section, from its heading to the next version's.
+notes="$(awk -v h="## [$version]" 'index($0, h) == 1 {on = 1; next} /^## \[|^\[[0-9]/ {on = 0} on' CHANGELOG.md)"
+[ -n "$(printf '%s' "$notes" | tr -d '[:space:]')" ] || stop "CHANGELOG.md has no '## [$version]' section: add it in the version-bump PR"
 existing="$(gh api "repos/$repo/git/ref/tags/$tag" --jq .object.sha 2>/dev/null || true)"
 if [ -n "$existing" ] && [ "$existing" != "$sha" ]; then stop "$tag already exists at another commit: bump the version in a PR"; fi
-echo "main is $sha, clean, CI passed, $tag is free or already at this commit."
+echo "main is $sha, clean, CI passed, CHANGELOG.md has $version, and $tag is free or already at this commit."
 
 say "2. Release"
 prerelease=()
@@ -56,7 +60,10 @@ else
   if [ "$previous" != none ]; then git log --oneline "$previous..$sha" | sed 's/^/  /'; fi
   read -r -p "Create $tag at $sha? It can't be moved or deleted afterwards. [y/N] " answer
   [ "$answer" = y ] || stop "nothing created"
-  gh release create "$tag" --repo "$repo" --target "$sha" --title "$tag" --generate-notes "${prerelease[@]}" >/dev/null
+  notes_file="$(mktemp)"
+  printf '%s\n' "$notes" > "$notes_file"
+  gh release create "$tag" --repo "$repo" --target "$sha" --title "$tag" --notes-file "$notes_file" "${prerelease[@]}" >/dev/null
+  rm -f "$notes_file"
   echo "Created $tag."
 fi
 

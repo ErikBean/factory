@@ -7,7 +7,7 @@ This is the software factory: the platform it runs on, and the library, workflow
 - `platform/client/`: the developer's machine. `platform/github-oidc/` and `platform/github/`: each app's GitHub OIDC roles and the repos' GitHub rules.
 - `cdk/`: the construct library apps install from npm. `.github/workflows/app-*.yml`: the reusable workflows apps call by release tag.
 - App code lives in each app's own repo, not here.
-- Releasing: [RELEASING.md](RELEASING.md). Agents open the version-bump PR and move the apps afterwards; creating and approving the release is the admin's, with `platform/github/release.sh`.
+- Releasing: [RELEASING.md](RELEASING.md). Agents open the version-bump PR, with the version's [CHANGELOG.md](CHANGELOG.md) section, and move the apps afterwards; creating and approving the release is the admin's, with `platform/github/release.sh`.
 
 ## Research lives elsewhere
 
