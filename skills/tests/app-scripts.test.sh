@@ -5,7 +5,7 @@
 # runs on the outputs file `cdk deploy --outputs-file` writes.
 set -euo pipefail
 
-templates="$(cd "$(dirname "$0")/.." && pwd)/skills/factory-repo-setup/templates"
+templates="$(cd "$(dirname "$0")/../.." && pwd)/skills/factory-repo-setup/templates"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/scripts"

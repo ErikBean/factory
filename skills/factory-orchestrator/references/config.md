@@ -84,7 +84,7 @@ Each entry has:
 
 - `name`: how findings refer to it.
 - `kind`: `spec`, `decision` or `template`.
-- `path` or `url`: a file or folder on disk, or a page the reviewer can fetch. In a `url`, `{pinned}` stands for the factory-skills commit in `.agents/factory-skills.json`.
+- `path` or `url`: a file or folder on disk, or a page the reviewer can fetch. In a `url`, `{pinned}` stands for the factory commit the skills were synced from, in `.agents/factory-skills.json`.
 - `private`: `true` if it must not be quoted, linked or named in the repo or a pull request. Findings then state what it requires as a plain requirement. Put private entries in `factory.config.local.yaml`, so their paths aren't published either.
 
 ```yaml
@@ -95,7 +95,7 @@ review:
       url: https://github.com/example/account-setup/tree/main/openspec/specs
     - name: repo setup templates
       kind: template
-      url: https://github.com/example/factory-skills/tree/{pinned}/skills/factory-repo-setup/templates
+      url: https://github.com/example/factory/tree/{pinned}/skills/factory-repo-setup/templates
 ```
 
 ### `review.checks`

@@ -6,7 +6,7 @@
 # its commits, then runs the check in the project against the fake repo.
 set -euo pipefail
 
-check="$(cd "$(dirname "$0")/.." && pwd)/skills/factory-repo-setup/templates/check-factory-skills.mjs"
+check="$(cd "$(dirname "$0")/../.." && pwd)/skills/factory-repo-setup/templates/check-factory-skills.mjs"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 

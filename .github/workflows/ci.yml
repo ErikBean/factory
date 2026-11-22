@@ -24,4 +24,13 @@ jobs:
       # No real account IDs, emails or keys in tracked files (AGENTS.md).
       - run: python3 scripts/check-private.py
       - run: npx --no-install openspec validate --specs --no-interactive
+      # The skills' tests, and shellcheck, cfn-lint and actionlint over the
+      # repo-setup templates and this repo's workflows, at the versions
+      # skills/tests/requirements.txt pins.
+      - name: Install the skills' linters
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install --quiet -r skills/tests/requirements.txt
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+      - run: skills/check.sh
       - run: npm pack --dry-run --workspace cdk

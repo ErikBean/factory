@@ -4,7 +4,7 @@
 # temporary folder, runs the script in the target, and checks the result.
 set -euo pipefail
 
-sync="$(cd "$(dirname "$0")/.." && pwd)/skills/factory-repo-setup/templates/sync-factory-skills.sh"
+sync="$(cd "$(dirname "$0")/../.." && pwd)/skills/factory-repo-setup/templates/sync-factory-skills.sh"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 

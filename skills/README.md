@@ -1,4 +1,6 @@
-# factory-skills
+# skills
+
+The factory's agent skills. This was [ErikBean/factory-skills](https://github.com/ErikBean/factory-skills), moved into the factory unchanged apart from paths; its history stays there. `check.sh` lints the repo-setup templates and the factory's workflows and runs `tests/`, and the factory's CI runs it on every pull request.
 
 Agent skills for a multi-agent software factory. You hand an orchestrator agent a feature request. It spawns one sub agent per stage, and each sub agent has one role and uses one skill.
 
@@ -17,16 +19,16 @@ you ── request ──► factory-orchestrator ── shows the flow, waits f
 
 | Stage | Agent | Skill | What it does |
 | --- | --- | --- | --- |
-| spec | `spec-writer` | [`factory-spec-writer`](skills/factory-spec-writer/SKILL.md) | Writes an OpenSpec change: proposal, spec deltas with testable scenarios, design, tasks |
-| red | `test-writer` | [`factory-test-writer`](skills/factory-test-writer/SKILL.md) | Writes one failing test per scenario and proves each fails for the right reason |
-| green | `implementer` | [`factory-implementer`](skills/factory-implementer/SKILL.md) | Makes the tests pass without touching them, refactors, ticks the tasks |
-| review | `reviewer` | [`factory-reviewer`](skills/factory-reviewer/SKILL.md) | Read-only review against the spec, the tests, the diff and any outside requirements in the config |
-| verify | `verifier` | [`factory-verifier`](skills/factory-verifier/SKILL.md) | Tries to refute one review finding; blocking findings get three verifiers and survive on two confirmations |
-| ship | `releaser` | [`factory-releaser`](skills/factory-releaser/SKILL.md) | Archives the OpenSpec change, then commits, pushes and opens a PR |
+| spec | `spec-writer` | [`factory-spec-writer`](factory-spec-writer/SKILL.md) | Writes an OpenSpec change: proposal, spec deltas with testable scenarios, design, tasks |
+| red | `test-writer` | [`factory-test-writer`](factory-test-writer/SKILL.md) | Writes one failing test per scenario and proves each fails for the right reason |
+| green | `implementer` | [`factory-implementer`](factory-implementer/SKILL.md) | Makes the tests pass without touching them, refactors, ticks the tasks |
+| review | `reviewer` | [`factory-reviewer`](factory-reviewer/SKILL.md) | Read-only review against the spec, the tests, the diff and any outside requirements in the config |
+| verify | `verifier` | [`factory-verifier`](factory-verifier/SKILL.md) | Tries to refute one review finding; blocking findings get three verifiers and survive on two confirmations |
+| ship | `releaser` | [`factory-releaser`](factory-releaser/SKILL.md) | Archives the OpenSpec change, then commits, pushes and opens a PR |
 
 Each stage runs as a sub agent with one role and one skill.
 
-The orchestrator itself is [`factory-orchestrator`](skills/factory-orchestrator/SKILL.md). It doesn't trust handoffs: after red it runs the tests to see them fail, and after green it checks they pass and that the red tests weren't edited. Review findings are claims too, so verifiers check each one before it goes back to green, and the orchestrator counts their verdicts by fixed rules. You see what verification removed, and decide the findings the verifiers split on.
+The orchestrator itself is [`factory-orchestrator`](factory-orchestrator/SKILL.md). It doesn't trust handoffs: after red it runs the tests to see them fail, and after green it checks they pass and that the red tests weren't edited. Review findings are claims too, so verifiers check each one before it goes back to green, and the orchestrator counts their verdicts by fixed rules. You see what verification removed, and decide the findings the verifiers split on.
 
 By default you're asked at three points: before the build, after the spec, and before ship. A run ends at an open pull request, and merging is yours. The orchestrator won't start a build while `ship.review_queue` factory pull requests, 3 by default, are waiting for your review.
 
@@ -39,14 +41,14 @@ There are two places to install them, and they work together:
 - **On your machine, for every project.** Link each folder in `skills/` into the shared `~/.agents/skills/` folder, and from there into your agent's folder, such as `~/.claude/skills/`. Link to a clone you keep on `main`, so edits and `git pull` take effect everywhere at once.
 
   ```bash
-  for s in ~/path/to/factory-skills/skills/*/; do
+  for s in ~/path/to/factory/skills/factory-*/; do
     n=$(basename "$s")
     ln -s "${s%/}" ~/.agents/skills/"$n"
     ln -s ../../.agents/skills/"$n" ~/.claude/skills/"$n"
   done
   ```
 
-- **In each project, pinned.** `factory-repo-setup` copies the stage skills into the project's `.agents/skills/`, links them from `.claude/skills/`, and records the factory-skills commit in `.agents/factory-skills.json`. CI, teammates and cloud sessions then run the version the project was built with. To move a project to a newer version, run `scripts/sync-factory-skills.sh <factory-skills checkout>` in it and commit the result. So the pin doesn't go stale unnoticed, `scripts/check-factory-skills.mjs` says when a pinned skill has changed on factory-skills `main`. The project's CI runs it on every pull request as a warning that doesn't fail the build, and the orchestrator runs it before each build and shows the result in its plan.
+- **In each project, pinned.** `factory-repo-setup` copies the stage skills into the project's `.agents/skills/`, links them from `.claude/skills/`, and records the factory commit in `.agents/factory-skills.json`. CI, teammates and cloud sessions then run the version the project was built with. To move a project to a newer version, run `scripts/sync-factory-skills.sh <factory-skills checkout>` in it and commit the result. So the pin doesn't go stale unnoticed, `scripts/check-factory-skills.mjs` says when a pinned skill has changed on factory-skills `main`. The project's CI runs it on every pull request as a warning that doesn't fail the build, and the orchestrator runs it before each build and shows the result in its plan.
 
 In Claude Code, skills in `~/.claude/skills/` take precedence over a project's skills with the same name. With both installed, your machine runs your linked copy and everyone else runs the pinned one.
 
@@ -58,7 +60,7 @@ In Claude Code, skills in `~/.claude/skills/` take precedence over a project's s
 
 ## Start a new project
 
-[`factory-repo-setup`](skills/factory-repo-setup/SKILL.md) is the skill to invoke first. Ask for it by name to set up a new repo, or one with little in it yet:
+[`factory-repo-setup`](factory-repo-setup/SKILL.md) is the skill to invoke first. Ask for it by name to set up a new repo, or one with little in it yet:
 
 - A TypeScript AWS CDK app, OpenSpec and a `factory.config.yaml`. The app deploys as three stages: `dev` per branch in an agent account, `preview` per pull request in a preview account, and `prod` in production. `dev` and `preview` delete their data with their stacks.
 - CI that typechecks, tests and runs `cdk synth` on every pull request, and fails if any IAM role the app creates has no permissions boundary.
@@ -109,15 +111,15 @@ ship:
   mode: pr              # pr | commit | none
 ```
 
-[`references/config.md`](skills/factory-orchestrator/references/config.md) documents every key. Stages hand off to each other in the format in [`references/handoff.md`](skills/factory-orchestrator/references/handoff.md).
+[`references/config.md`](factory-orchestrator/references/config.md) documents every key. Stages hand off to each other in the format in [`references/handoff.md`](factory-orchestrator/references/handoff.md).
 
 ## Observe the factory
 
-[`factory-observer`](skills/factory-observer/SKILL.md) takes notes on how factory runs and repo setups go: what worked, what failed, and where an agent or the human hit friction. It writes them as findings and questions in an OKF (Open Knowledge Format) bundle outside the project repo. It never changes the run or the skills. A change it would make to a skill becomes a question for you to decide.
+[`factory-observer`](factory-observer/SKILL.md) takes notes on how factory runs and repo setups go: what worked, what failed, and where an agent or the human hit friction. It writes them as findings and questions in an OKF (Open Knowledge Format) bundle outside the project repo. It never changes the run or the skills. A change it would make to a skill becomes a question for you to decide.
 
 The orchestrator and `factory-repo-setup` spawn it after each stage or step. At the end, it asks you a few retro questions and writes up the run.
 
-It's on while `~/.config/factory/observer.yaml` exists, and you can also ask for it on a single run. Start from [the template](skills/factory-observer/templates/observer.yaml):
+It's on while `~/.config/factory/observer.yaml` exists, and you can also ask for it on a single run. Start from [the template](factory-observer/templates/observer.yaml):
 
 ```yaml
 remote: git@github.com:<you>/research.git  # empty: local bundle in ~/.local/share/factory-observer/

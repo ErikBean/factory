@@ -25,8 +25,9 @@ PATTERNS = {
     "email address": re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
 }
 
-# Addresses that identify no one.
-SAFE_EMAIL = re.compile(r"@(example\.(com|org|net)|users\.noreply\.github\.com|anthropic\.com)$", re.I)
+# Addresses that identify no one, and git@<host>, the user part of a Git SSH
+# address such as git@github.com:owner/repo.git.
+SAFE_EMAIL = re.compile(r"@(example\.(com|org|net)|users\.noreply\.github\.com|anthropic\.com)$|^git@[A-Za-z0-9.-]+$", re.I)
 
 # This file describes the patterns, so it is not scanned. Neither are
 # lockfiles: npm writes third-party package metadata into them.

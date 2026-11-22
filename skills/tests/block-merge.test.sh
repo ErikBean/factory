@@ -5,7 +5,7 @@
 # 2 blocks the call, 0 allows it.
 set -euo pipefail
 
-hook="$(cd "$(dirname "$0")/.." && pwd)/skills/factory-repo-setup/templates/claude/hooks/block-merge.mjs"
+hook="$(cd "$(dirname "$0")/../.." && pwd)/skills/factory-repo-setup/templates/claude/hooks/block-merge.mjs"
 failures=0
 
 # Runs the hook on a Bash tool call whose command is $1, and prints its exit code.

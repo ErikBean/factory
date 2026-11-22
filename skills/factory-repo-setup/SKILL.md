@@ -5,6 +5,8 @@ description: Sets up a GitHub repo for the software factory, with a TypeScript A
 
 # Factory repo setup
 
+> **Out of date.** This skill describes the old setup, which copies templates into each repo: role templates, six workflows, `stage.ts` and scripts. The factory replaces those with the construct library (`cdk/`, published as `@favabean/factory-cdk`), the reusable workflows in `.github/workflows/app-*.yml`, and the roles in `platform/github-oidc/`. [jello-world#3](https://github.com/ErikBean/jello-world/pull/3) shows the current setup. This skill is being rewritten around the factory's `template/`. Until then, follow jello-world's setup rather than the steps below, and ask the human before using them.
+
 You set up a repo so the factory can build in it and every merge to `main` deploys to production. Run this once per repo, before the first factory run.
 
 The app runs in three AWS accounts, as three stages of one CDK app:
@@ -218,7 +220,7 @@ Observer:    on, notes to <remote> (or: local bundle | off)
      requirements:
        - name: repo setup templates
          kind: template
-         url: https://github.com/ErikBean/factory-skills/tree/{pinned}/skills/factory-repo-setup/templates
+         url: https://github.com/ErikBean/factory/tree/{pinned}/skills/factory-repo-setup/templates
    ```
 
    `{pinned}` stands for the factory-skills commit in `.agents/factory-skills.json`, so the reviewer compares a change with the templates the repo is pinned to. If the human keeps account-level requirements elsewhere, such as specs for the AWS accounts, ask whether to add them as `spec` sources. Private ones, such as personal notes, go in `factory.config.local.yaml`. Add `factory.config.local.yaml` to `.gitignore`.
