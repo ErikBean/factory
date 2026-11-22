@@ -122,22 +122,14 @@ A new app takes one admin command, one agent step and one more admin command:
 
 ## Releases
 
-A release ships the library and the workflows together. Merging to `main` on
-its own reaches no app. To release:
-
-1. In a pull request, set `cdk/package.json`'s version, such as `0.3.0`.
-2. After it merges, the admin runs
-   `gh release create v0.3.0 --repo ErikBean/factory --target main --generate-notes`.
-3. [`publish.yml`](.github/workflows/publish.yml) checks the tag matches the
-   version, runs the tests and stages the package on npm through trusted
-   publishing, with provenance and no stored token. A prerelease such as
-   `v0.3.0-rc.1` goes to npm's `next` dist-tag.
-4. The admin checks the staged version (`npm stage list @favabean/factory-cdk`,
-   then `npm stage download <id>`) and approves it with 2FA:
-   `npm stage approve <id>`, or Approve on npmjs.com. The trusted publisher is
-   stage-only, and the workflow's token can't approve, so nothing goes live
-   without this step.
-5. Dependabot proposes the new release to each app after a week's cooldown.
+A release ships the library, the workflows, the specs, the skills and the
+template together. Merging to `main` on its own reaches no app. In short: an
+agent opens a PR bumping `cdk/package.json`'s version; after it merges, the
+admin runs [`platform/github/release.sh`](platform/github/release.sh), which
+checks `main`, creates the release, waits for the package to be staged on npm
+and offers to approve it. [CHANGELOG.md](CHANGELOG.md) says what each
+release changed and what apps must do to move to it. [RELEASING.md](RELEASING.md) has the steps, what
+each checks, moving apps to a release, and what to do when one goes wrong.
 
 [`platform/github/release-tags.sh`](platform/github/release-tags.sh), run
 once by the admin, makes `v*` tags admin-only to create and impossible to
