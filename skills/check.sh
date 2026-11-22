@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 templates=skills/factory-repo-setup/templates
 
 echo "shellcheck"
-shellcheck "$templates"/*.sh skills/check.sh skills/tests/*.sh
+shellcheck "$templates"/*.sh skills/check.sh skills/tests/*.sh platform/github/*.sh
 
 echo "node --check"
 for f in "$templates"/*.mjs "$templates"/claude/hooks/*.mjs; do node --check "$f"; done
