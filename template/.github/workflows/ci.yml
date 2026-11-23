@@ -16,7 +16,7 @@ jobs:
     uses: {{factory}}/.github/workflows/app-prod-diff.yml@{{release}}
 
   # Warns, without failing, when the factory skills pinned in .agents/ are
-  # behind factory-skills.
+  # behind the factory's main branch.
   factory-skills:
     runs-on: ubuntu-latest
     steps:

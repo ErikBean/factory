@@ -18,6 +18,6 @@ review:
       url: https://github.com/{{factory}}/tree/{{release}}
     # The account-level specs this repo's stages and roles follow, such as
     # app-environments, deploy-permissions and agent-permissions.
-    - name: aws-agent-bootstrap specs
+    - name: factory specs
       kind: spec
       url: https://github.com/{{factory}}/tree/{{release}}/openspec/specs
