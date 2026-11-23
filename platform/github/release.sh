@@ -10,8 +10,9 @@
 #      commit SHA, with the changelog section as its notes, after you confirm.
 #   3. Waits for publish.yml to stage the package on npm, and prints its stage
 #      ID and what to check.
-#   4. Offers to run `npm stage approve` for you (your npm 2FA), then waits
-#      until the version is live.
+#   4. Offers to run `npm stage approve` for you (your npm 2FA), again while
+#      npm's automated review is still running, then waits until the version
+#      is live.
 #
 # A release can't be moved or deleted once created, so it stops at the first
 # problem, before anything changes. Safe to re-run: it picks up a release that
@@ -89,12 +90,15 @@ echo "  (the version, the files: dist/, LICENSE, package.json, and provenance fr
 say "4. Approve"
 npm whoami >/dev/null 2>&1 || { echo "npm needs you signed in to approve:"; npm login; }
 read -r -p "Run 'npm stage approve $stage' now? [y/N] " answer
-if [ "$answer" = y ]; then
-  npm stage approve "$stage"
-else
-  echo "Approve later with: npm stage approve $stage"
-  exit 0
-fi
+[ "$answer" = y ] || { echo "Approve later with: npm stage approve $stage"; exit 0; }
+# Approval fails with a 409 until npm's automated review of the package has
+# finished, which can take a few minutes after staging. Each try asks for 2FA,
+# so wait for the human rather than retrying on a timer.
+until npm stage approve "$stage"; do
+  echo "Approval failed. If npm says automated review hasn't finished, wait a few minutes."
+  read -r -p "Try again? [Y/n] " answer
+  [ "$answer" != n ] || { echo "Approve later with: npm stage approve $stage"; exit 0; }
+done
 for _ in $(seq 1 36); do
   [ "$(npm view "$package" dist-tags.latest 2>/dev/null)" = "$version" ] && break
   [ "${prerelease[*]:-}" ] && [ "$(npm view "$package" dist-tags.next 2>/dev/null)" = "$version" ] && break
