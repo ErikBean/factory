@@ -11,6 +11,7 @@
     "test": "npm test --workspaces"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.3",
     "@fission-ai/openspec": "2.0.0"
   }
 }
