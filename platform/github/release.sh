@@ -9,10 +9,11 @@
 #   2. Creates the release v<version> from cdk/package.json, at main's full
 #      commit SHA, with the changelog section as its notes, after you confirm.
 #   3. Waits for publish.yml to stage the package on npm, and prints its stage
-#      ID and what to check.
-#   4. Offers to run `npm stage approve` for you (your npm 2FA), again while
-#      npm's automated review is still running, then waits until the version
-#      is live.
+#      ID.
+#   4. Shows the staged package, offers to run `npm stage approve` for you
+#      (your npm 2FA), waiting first until npm's automated review has likely
+#      finished and offering to try again if it hasn't, then waits until the
+#      version is live.
 #
 # A release can't be moved or deleted once created, so it stops at the first
 # problem, before anything changes. Safe to re-run: it picks up a release that
@@ -41,7 +42,11 @@ git fetch -q "https://github.com/$repo.git" main
 sha="$(git rev-parse HEAD)"
 [ "$sha" = "$(git rev-parse FETCH_HEAD)" ] || stop "local main isn't GitHub's main: git pull first"
 ci="$(gh api "repos/$repo/commits/$sha/check-runs" --jq '[.check_runs[] | select(.name == "test")][0].conclusion // "none"')"
-[ "$ci" = success ] || stop "CI's test check on $sha is '$ci', not success"
+if [ "$ci" != success ]; then
+  echo "Check runs on $sha:" >&2
+  gh api "repos/$repo/commits/$sha/check-runs" --jq '.check_runs[] | "  \(.name): \(.status) \(.conclusion // "")"' >&2 || true
+  stop "CI's test check on $sha is '$ci', not success. If it's still running, wait for it and run this again"
+fi
 if npm view "$package@$version" version >/dev/null 2>&1; then stop "$package@$version is already on npm: bump the version in a PR"; fi
 # Notes not yet in a version-bump PR would be left out of this release.
 pending="$(find .changeset -maxdepth 1 -name '*.md' ! -name README.md | sort)"
@@ -92,13 +97,22 @@ gh run watch "$run" --repo "$repo" --exit-status >/dev/null || stop "the publish
 stage="$(gh run view "$run" --repo "$repo" --log | grep -oE 'staged with id [0-9a-f-]+' | head -1 | awk '{print $4}')"
 [ -n "$stage" ] || stop "the run passed but no stage ID was found in its log: check it by hand"
 echo "Staged $package@$version with ID $stage."
-echo "Before approving, check: npm stage view $stage"
-echo "  (the version, the files: dist/, LICENSE, package.json, and provenance from this run)"
 
 say "4. Approve"
 npm whoami >/dev/null 2>&1 || { echo "npm needs you signed in to approve:"; npm login; }
+view="$(npm stage view "$stage")" || stop "npm stage view $stage failed: check npm stage list $package"
+printf '%s\n' "$view"
+echo "Check the version is $version, and that it was staged by GitHub Actions. npm stage download $stage gets the files to look at."
 read -r -p "Run 'npm stage approve $stage' now? [y/N] " answer
 [ "$answer" = y ] || { echo "Approve later with: npm stage approve $stage"; exit 0; }
+# npm refuses approval until its automated review finishes, and stage view
+# doesn't show the review's progress. It has taken several minutes, and each
+# try asks for 2FA, so wait until 10 minutes after staging unless told not to.
+staged_at="$(printf '%s\n' "$view" | sed -n 's/^date staged: //p')"
+if [ -n "$staged_at" ] && ready=$(( $(date -d "$staged_at" +%s 2>/dev/null || echo 0) + 600 )) && [ "$ready" -gt "$(date +%s)" ]; then
+  echo "npm's automated review usually takes several minutes. Trying at $(date -d "@$ready" +%H:%M); press Enter to try now."
+  read -r -t "$(( ready - $(date +%s) ))" _ || true
+fi
 # Approval fails with a 409 until npm's automated review of the package has
 # finished, which can take a few minutes after staging. Each try asks for 2FA,
 # so wait for the human rather than retrying on a timer.
