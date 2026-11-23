@@ -4,6 +4,13 @@ What changed in each factory release, for the apps that use it. Each version is 
 
 The version-bump pull request adds the new version's section, and [`release.sh`](platform/github/release.sh) uses it as the release notes. See [RELEASING.md](RELEASING.md).
 
+## [Unreleased]
+
+### Fixed
+
+- `release.sh` took a missing tag for one at another commit and stopped ([#20](https://github.com/ErikBean/factory/pull/20)), and exited when npm refused approval while its automated review was still running; it now offers to try again.
+- The template's skill scripts, CI comment and spec source name still referred to factory-skills and aws-agent-bootstrap.
+
 ## [0.3.0] - 2026-11-22
 
 The factory becomes one repo: the account specs, the platform and the skills move in, and new apps start from a template. The npm package's code is unchanged from 0.2.0.

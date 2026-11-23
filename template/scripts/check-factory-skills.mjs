@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Says whether the factory skills pinned in .agents/factory-skills.json are
-// behind factory-skills' default branch. CI runs it on every pull request and
+// behind the factory's default branch. CI runs it on every pull request and
 // the factory orchestrator runs it before a build.
 //
-// Usage: node scripts/check-factory-skills.mjs [factory-skills git URL or path]
+// Usage: node scripts/check-factory-skills.mjs [factory git URL or path]
 //
 // The source defaults to the pin file's "source", fetched over HTTPS. Only
 // changes to the pinned skills, and stage skills added upstream since, count.
@@ -35,7 +35,7 @@ if (!existsSync(pinFile)) {
 }
 
 const pin = JSON.parse(readFileSync(pinFile, "utf8"));
-// CI has no SSH key, and factory-skills is public, so read it over HTTPS.
+// CI has no SSH key, and the factory is public, so read it over HTTPS.
 const source = (process.argv[2] ?? pin.source ?? "").replace(/^git@github\.com:/, "https://github.com/");
 if (!source || !pin.commit) {
   warn("Factory skills pin unreadable", `${pinFile} needs a "source" and a "commit".`);
@@ -43,7 +43,7 @@ if (!source || !pin.commit) {
 }
 
 const short = pin.commit.slice(0, 7);
-const update = "Run scripts/sync-factory-skills.sh <factory-skills checkout> and commit the result to update.";
+const update = "Run scripts/sync-factory-skills.sh <factory checkout> and commit the result to update.";
 const work = mkdtempSync(join(tmpdir(), "factory-skills-"));
 const git = (...args) => execFileSync("git", ["-C", work, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 
