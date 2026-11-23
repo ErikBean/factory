@@ -4,8 +4,8 @@
 # merged. It does the admin's part of a release (see RELEASING.md):
 #
 #   1. Checks main is clean and up to date with GitHub, that CI passed on it,
-#      that CHANGELOG.md has the version's section, and that neither the tag
-#      nor the npm version exists yet.
+#      that no change notes are pending and the changelog has the version's
+#      section, and that neither the tag nor the npm version exists yet.
 #   2. Creates the release v<version> from cdk/package.json, at main's full
 #      commit SHA, with the changelog section as its notes, after you confirm.
 #   3. Waits for publish.yml to stage the package on npm, and prints its stage
@@ -43,14 +43,22 @@ sha="$(git rev-parse HEAD)"
 ci="$(gh api "repos/$repo/commits/$sha/check-runs" --jq '[.check_runs[] | select(.name == "test")][0].conclusion // "none"')"
 [ "$ci" = success ] || stop "CI's test check on $sha is '$ci', not success"
 if npm view "$package@$version" version >/dev/null 2>&1; then stop "$package@$version is already on npm: bump the version in a PR"; fi
-# The version's CHANGELOG.md section, from its heading to the next version's.
-notes="$(awk -v h="## [$version]" 'index($0, h) == 1 {on = 1; next} /^## \[|^\[[0-9]/ {on = 0} on' CHANGELOG.md)"
-[ -n "$(printf '%s' "$notes" | tr -d '[:space:]')" ] || stop "CHANGELOG.md has no '## [$version]' section: add it in the version-bump PR"
+# Notes not yet in a version-bump PR would be left out of this release.
+pending="$(find .changeset -maxdepth 1 -name '*.md' ! -name README.md | sort)"
+[ -z "$pending" ] || stop "change notes are waiting in .changeset/ ($(echo "$pending" | tr '\n' ' ')): run npx changeset version in a version-bump PR first"
+# The version's changelog section, from its heading to the next version's.
+# Changesets writes cdk/CHANGELOG.md, headed "## <version>". Versions up to
+# 0.3.0 are in CHANGELOG.md, headed "## [<version>] - <date>".
+notes="$(awk -v h="## $version" '$0 == h {on = 1; next} /^## / {on = 0} on' cdk/CHANGELOG.md 2>/dev/null || true)"
+if [ -z "$(printf '%s' "$notes" | tr -d '[:space:]')" ]; then
+  notes="$(awk -v h="## [$version]" 'index($0, h) == 1 {on = 1; next} /^## \[|^\[[0-9]/ {on = 0} on' CHANGELOG.md)"
+fi
+[ -n "$(printf '%s' "$notes" | tr -d '[:space:]')" ] || stop "cdk/CHANGELOG.md has no '## $version' section: run npx changeset version in the version-bump PR"
 # On a 404, gh api prints the error body to stdout, so trust its output only when it succeeds.
 existing=""
 if out="$(gh api "repos/$repo/git/ref/tags/$tag" --jq .object.sha 2>/dev/null)"; then existing="$out"; fi
 if [ -n "$existing" ] && [ "$existing" != "$sha" ]; then stop "$tag already exists at another commit: bump the version in a PR"; fi
-echo "main is $sha, clean, CI passed, CHANGELOG.md has $version, and $tag is free or already at this commit."
+echo "main is $sha, clean, CI passed, no notes are pending, the changelog has $version, and $tag is free or already at this commit."
 
 say "2. Release"
 prerelease=()

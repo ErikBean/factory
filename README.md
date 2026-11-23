@@ -123,13 +123,17 @@ A new app takes one admin command, one agent step and one more admin command:
 ## Releases
 
 A release ships the library, the workflows, the specs, the skills and the
-template together. Merging to `main` on its own reaches no app. In short: an
-agent opens a PR bumping `cdk/package.json`'s version; after it merges, the
-admin runs [`platform/github/release.sh`](platform/github/release.sh), which
-checks `main`, creates the release, waits for the package to be staged on npm
-and offers to approve it. [CHANGELOG.md](CHANGELOG.md) says what each
-release changed and what apps must do to move to it. [RELEASING.md](RELEASING.md) has the steps, what
-each checks, moving apps to a release, and what to do when one goes wrong.
+template together. Merging to `main` on its own reaches no app. In short:
+every PR adds a change note in [`.changeset/`](.changeset/README.md); an agent
+opens a version-bump PR with `npx changeset version`, which turns the notes
+into the version and its changelog; after it merges, the admin runs
+[`platform/github/release.sh`](platform/github/release.sh), which checks
+`main`, creates the release, waits for the package to be staged on npm and
+offers to approve it. [`cdk/CHANGELOG.md`](cdk/CHANGELOG.md) (and
+[CHANGELOG.md](CHANGELOG.md) up to 0.3.0) says what each release changed and
+what apps must do to move to it. [RELEASING.md](RELEASING.md) has the steps,
+what each checks, moving apps to a release, and what to do when one goes
+wrong.
 
 [`platform/github/release-tags.sh`](platform/github/release-tags.sh), run
 once by the admin, makes `v*` tags admin-only to create and impossible to

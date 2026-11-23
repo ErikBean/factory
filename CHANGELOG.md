@@ -2,14 +2,7 @@
 
 What changed in each factory release, for the apps that use it. Each version is a release tag `v<version>` and the same version of [`@favabean/factory-cdk`](https://www.npmjs.com/package/@favabean/factory-cdk) on npm (0.1.0 predates tags). **Upgrading** says what an app must do to move to that version. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [semantic versioning](https://semver.org/): before 1.0, a minor version may need app changes, and its Upgrading section says which.
 
-The version-bump pull request adds the new version's section, and [`release.sh`](platform/github/release.sh) uses it as the release notes. See [RELEASING.md](RELEASING.md).
-
-## [Unreleased]
-
-### Fixed
-
-- `release.sh` took a missing tag for one at another commit and stopped ([#20](https://github.com/ErikBean/factory/pull/20)), and exited when npm refused approval while its automated review was still running; it now offers to try again.
-- The template's skill scripts, CI comment and spec source name still referred to factory-skills and aws-agent-bootstrap.
+**Versions after 0.3.0 are in [`cdk/CHANGELOG.md`](cdk/CHANGELOG.md)**, which Changesets writes from each pull request's change note; [`release.sh`](platform/github/release.sh) uses the version's section as the release notes. See [RELEASING.md](RELEASING.md). This file keeps 0.3.0 and earlier.
 
 ## [0.3.0] - 2026-11-22
 
