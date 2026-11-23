@@ -44,6 +44,7 @@ Run everything with your Admin profile in the management account, in this order:
 
    It ends by listing who holds each agent permission set. Only the agent user should be there.
 6. **Skip** the SCPs, the RCP, the declarative policies and the budget actions. None of them apply to the management account. Your existing budgets still email alerts.
+7. **Ask AWS to verify the account for CloudFront**, as [below](#ask-aws-to-verify-each-account-for-cloudfront), unless it already serves a CloudFront distribution.
 
 When AWS raises the quota:
 
@@ -52,6 +53,18 @@ When AWS raises the quota:
 3. Delete the `interim-agent-assignments` stack.
 
 Until then, re-request the quota from time to time: AWS raises it gradually as the account builds history.
+
+## Ask AWS to verify each account for CloudFront
+
+A new AWS account can't create CloudFront distributions until AWS Support verifies it, and every factory app serves its site through CloudFront. Ask as soon as an account that apps deploy to exists: the management account during the interim, then the agent, preview and production accounts. Verification can take days, so asking early keeps it off the path to an app's first deploy.
+
+There's no read-only check. An account that isn't verified fails the first deploy of a `StaticSite` with "Your account must be verified before you can add new CloudFront resources. To verify your account, please contact AWS Support", with a request ID.
+
+Open an **Account and billing** support case from that account, signed in as your admin:
+
+- Say what it's for: static sites for a few small apps, from S3 through CloudFront with origin access control.
+- Quote the error and its request ID, if a deploy has already failed.
+- Ask for the account to be verified for CloudFront. It isn't a quota, so don't request it as one.
 
 ## Create the agent, preview and production accounts
 
@@ -115,6 +128,7 @@ The value must be at least the number of accounts already in the organization pl
    ```
 
 6. **Point local profiles at the agent account.** In `~/.aws/config`, set `sso_account_id` in the agent profiles to the new account's ID, from the stack's `AgentAccountId` output. Add admin profiles for the agent and production accounts, using the `Admin` role and the `AgentAccountId` and `ProductionAccountId` outputs.
+7. **Ask AWS to verify the agent, preview and production accounts for CloudFront**, as [above](#ask-aws-to-verify-each-account-for-cloudfront).
 
 The new accounts' root users have no password. Leave it that way. Use the management account's admin role or `OrganizationAccountAccessRole` if you ever need admin access without Identity Center.
 
