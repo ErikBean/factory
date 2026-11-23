@@ -33,12 +33,13 @@ The observer is on if `${XDG_CONFIG_HOME:-~/.config}/factory/observer.yaml` exis
 
 ## Step 2: Check the account
 
-All read-only, with the agent profile. Stop and tell the human if one fails: the fix belongs in `platform/aws/`, not in the app (factory#10).
+All read-only, with the agent profile, apart from the test role assumptions, which print nothing secret. Stop and tell the human if one fails: the fix belongs in `platform/aws/`, not in the app (factory#10).
 
 - **Both bootstraps carry the boundary.** `aws cloudformation describe-stacks --stack-name CDKToolkit` and `--stack-name CDKToolkit-ci`, reading `Parameters`: `InputPermissionsBoundary` is `agent-boundary` and `ApplyPermissionsBoundaryToAllRoles` is `true` on both.
 - **The GitHub OIDC provider exists.** `aws iam list-open-id-connect-providers` shows one ending in `token.actions.githubusercontent.com`. The roles look it up rather than create it.
-- **The management account, during the interim.** If the account is the organization's management account, that's expected while the interim requirement applies: say so, and note that service control policies don't protect it.
-- **CloudFront works in the account.** A new AWS account must be verified by AWS Support before it can create CloudFront distributions. There's no read-only check: if step 6's `dev` deploy fails with "Your account must be verified", tell the human to open an Account and billing case quoting the error and request ID. It can take days, so say so.
+- **The management account, during the interim.** If the account is the organization's management account, that's expected while the interim requirement applies: say so, note that service control policies don't protect it, and ask the human to confirm it in this session, even though the spec records it (factory#10).
+- **The builder can't reach the `ci` bootstrap.** While the stages share an account, this is what keeps agents from deploying to production. As the agent profile, `aws sts assume-role --role-session-name check --query AssumedRoleUser.Arn --output text --role-arn <arn>` must fail with AccessDenied for `cdk-<ci qualifier>-deploy-role-<account>-<region>` and `cdk-<ci qualifier>-file-publishing-role-<account>-<region>`, and succeed for `cdk-<dev qualifier>-lookup-role-<account>-<region>`. Query only `AssumedRoleUser.Arn`, so no credentials are printed. The qualifiers are `ciQualifier` and `devQualifier` in `apps.json` (factory#10).
+- **CloudFront works in the account.** A new AWS account must be verified by AWS Support before it can create CloudFront distributions, and there's no read-only check. Ask the human whether the account already serves a CloudFront distribution, or has been verified. If not, point them to `platform/aws/RUNBOOK.md`'s "Ask AWS to verify each account for CloudFront" now, since it can take days. If step 6's `dev` deploy fails with "Your account must be verified", the same section says what to put in the case, with the error's request ID.
 
 ## Step 3: The GitHub side (human)
 
@@ -68,7 +69,7 @@ When the human has reviewed and merged the `apps.json` pull request, give them, 
 platform/github-oidc/deploy-roles.sh <admin-profile>
 ```
 
-It asks them to confirm the account, shows the IAM changes and asks again before changing anything. It creates `factory-deploy-<name>` and `factory-dev-cleanup-<name>`, and sets the app's `AWS_ACCOUNT_ID` and `AWS_REGION` variables. Ask them to paste the output's last lines.
+Say to sign in first as their own Identity Center user with the admin permission set, through their admin profile, not as the agent user. The profile name, such as `admin`, isn't a user name (factory#11). It asks them to confirm the account, shows the IAM changes and asks again before changing anything. It creates `factory-deploy-<name>` and `factory-dev-cleanup-<name>`, and sets the app's `AWS_ACCOUNT_ID` and `AWS_REGION` variables. Ask them to paste the output's last lines. Then ask them to sign out of the admin session by deleting its token file, `rm ~/.aws/sso/cache/d033e22ae348aeb5660fc2140aec35850c4da997.json` (the SHA-1 of the session name `admin`), not with `aws sso logout`, which also signs out the agent that step 6 deploys as (factory#11).
 
 ## Step 6: Deploy and test dev
 
