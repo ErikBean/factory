@@ -29,6 +29,8 @@ jobs:
           PR_AUTHOR: ${{ github.event.pull_request.user.login }}
       - run: scripts/test-check-changeset.sh
       - run: npm test
+      # The dev machine setup, in a throwaway home folder.
+      - run: platform/client/test/setup.test.sh
       # No real account IDs, emails or keys in tracked files (AGENTS.md).
       - run: python3 scripts/check-private.py
       - run: npx --no-install openspec validate --specs --no-interactive

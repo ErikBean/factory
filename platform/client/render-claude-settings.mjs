@@ -1,12 +1,15 @@
 #!/usr/bin/env node
-// Print the Claude Code user settings this machine should have, as JSON.
-// Usage: node scripts/render-claude-settings.mjs
+// Print the Claude Code user settings this machine should have, as JSON, as
+// the agent-client spec requires. claude-settings.example.json is its output
+// with placeholders.
+// Usage: node platform/client/render-claude-settings.mjs
 // Reads HOME, and finds the SSH private keys in ~/.ssh to deny.
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const home = process.env.HOME;
+const hook = join(home, ".claude/hooks/agent-github-token.mjs");
 
 // The AWS CLI names an SSO session's token file after the SHA-1 of the session
 // name, so the admin token's file is known before anyone signs in.
@@ -61,14 +64,22 @@ const settings = {
         "registry.npmjs.org",
       ],
     },
-    filesystem: { allowWrite: ["~/.npm"] },
+    filesystem: {
+      allowWrite: ["~/.npm", "~/.local/share/factory-observer", "~/.local/state/factory-observer"],
+    },
     credentials: {
       files: [
         { path: `~/.aws/sso/cache/${adminToken}`, mode: "deny" },
         ...sshPrivateKeys().map((path) => ({ path, mode: "deny" })),
+        { path: "~/.config/agent-github/app.pem", mode: "deny" },
       ],
       envVars: [{ name: "SSH_AUTH_SOCK", mode: "deny" }],
     },
+  },
+  // Mints the agent GitHub App's token for each session, outside the sandbox.
+  hooks: {
+    SessionStart: [{ hooks: [{ type: "command", command: `${hook} session-start`, timeout: 30 }] }],
+    PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: `${hook} pre-bash`, timeout: 30 }] }],
   },
 };
 

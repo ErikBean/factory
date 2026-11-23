@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Check this computer against openspec/specs/dev-machine. Read-only.
+# Check this computer against openspec/specs/agent-client. Read-only.
 # Meant to run from inside a Claude Code session, so it sees what an agent's
 # sandboxed commands see. Run outside the sandbox, the sandbox checks fail.
 #
-# Usage: scripts/check-dev-machine.sh
+# Usage: platform/client/check-dev-machine.sh
 # Prints one line per check: ok, FAIL, or skip (can't tell yet, with why).
 # Exits 1 if any check fails.
 set -uo pipefail
-repo=$(cd "$(dirname "$0")/.." && pwd)
+here=$(cd "$(dirname "$0")" && pwd)
 fails=0
 ok()   { printf 'ok    %s\n' "$1"; }
 fail() { printf 'FAIL  %s\n' "$1"; fails=$((fails + 1)); }
@@ -33,6 +33,12 @@ done
 for s in factory-orchestrator factory-repo-setup dev-machine-setup; do
   check "skill $s installed" test -f "$HOME/.claude/skills/$s/SKILL.md"
 done
+# The links lead into a factory checkout at a release tag.
+if src=$(readlink -f "$HOME/.claude/skills/factory-repo-setup" 2>/dev/null) && [[ -d $src ]]; then
+  top=$(git -C "$src" rev-parse --show-toplevel 2>/dev/null)
+  if tag=$(git -C "$src" describe --tags --exact-match --match 'v*' 2>/dev/null); then ok "skills come from $top at $tag"
+  else fail "skills come from a factory release (${top:-$src} isn't at a v* tag; re-run: setup-dev-machine.sh skills)"; fi
+fi
 ok "$n linked skills resolve"
 
 echo "== Claude Code settings"
@@ -47,9 +53,9 @@ if node -e 'JSON.parse(require("fs").readFileSync(process.argv[1]))' "$settings"
   # The settings this repo would write, compared as JSON. Differences aren't
   # always wrong (you may have added hooks), so this only reports them.
   if node -e 'const fs=require("fs");const a=JSON.parse(fs.readFileSync(process.argv[1]));const b=JSON.parse(process.argv[2]);process.exit(JSON.stringify(a)===JSON.stringify(b)?0:1)' \
-      "$settings" "$(node "$repo/scripts/render-claude-settings.mjs")"; then
+      "$settings" "$(node "$here/render-claude-settings.mjs")"; then
     ok "settings.json matches what setup-dev-machine.sh writes"
-  else skip "settings.json differs from what setup-dev-machine.sh writes; compare with: node scripts/render-claude-settings.mjs"; fi
+  else skip "settings.json differs from what setup-dev-machine.sh writes; compare with: node platform/client/render-claude-settings.mjs"; fi
 else
   fail "settings.json is valid JSON"
 fi
@@ -93,7 +99,7 @@ if command -v aws >/dev/null; then
       Agent-*) ok "signed in to AWS with an agent role ($role)";;
       *) fail "signed in to AWS with an agent role (got $role)";;
     esac
-  else skip "AWS sign-in (not signed in; see RUNBOOK.md)"; fi
+  else skip "AWS sign-in (not signed in; see platform/client/RUNBOOK.md)"; fi
 fi
 
 echo "== GitHub"
@@ -101,8 +107,11 @@ echo "== GitHub"
 if timeout 20 git ls-remote git@github.com:cli/cli.git HEAD >/dev/null 2>&1; then
   fail "git over SSH can't use your key"
 else ok "git over SSH can't use your key"; fi
-if [[ -n ${GH_TOKEN:-} ]]; then skip "agent GitHub identity (GH_TOKEN is set; not checked yet)"
-else skip "agent GitHub identity (not set up yet: the GitHub App step isn't built)"; fi
+# The agent-github-token hook gives each session a GitHub App installation token.
+if [[ -z ${GH_TOKEN:-} ]]; then skip "agent GitHub identity (no GH_TOKEN: see platform/client/README.md)"
+elif repos=$(timeout 20 gh api /installation/repositories --jq '.repositories | length' 2>/dev/null); then
+  ok "agent GitHub identity is an app installation token ($repos repos)"
+else fail "agent GitHub identity is an app installation token"; fi
 
 echo
 if ((fails)); then echo "$fails check(s) failed."; exit 1; fi

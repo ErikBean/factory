@@ -2,13 +2,40 @@
 
 ## Purpose
 
-How the developer's machine is set up so AI coding agents, such as Claude Code, get AWS access only through agent roles and GitHub access only through an agent GitHub App, and run inside a strict sandbox that keeps the developer's own credentials out of reach. These controls shape what agents try and protect the credentials themselves; the AWS-side specs are what AWS enforces.
+How the developer's machine is set up so AI coding agents, such as Claude Code, have the tools and factory skills they need, get AWS access only through agent roles and GitHub access only through an agent GitHub App, and run inside a strict sandbox that keeps the developer's own credentials out of reach. These controls shape what agents try and protect the credentials themselves; the AWS-side specs are what AWS enforces.
+
+[`platform/client/setup-dev-machine.sh`](../../../platform/client/setup-dev-machine.sh) sets a machine up, and [`platform/client/check-dev-machine.sh`](../../../platform/client/check-dev-machine.sh), run from inside an agent session, checks the scenarios here that a machine can check. [`platform/client/RUNBOOK.md`](../../../platform/client/RUNBOOK.md) has the order of steps.
 
 Reasoning: [client setup decision](https://github.com/ErikBean/research/blob/main/knowledge/projects/aws-agent-bootstrap/decisions/agent-client-setup.md) and [GitHub access decision](https://github.com/ErikBean/research/blob/main/knowledge/projects/aws-agent-bootstrap/decisions/agent-github-access.md), which link the research behind them.
 
 Example files: [`platform/client/claude-settings.example.json`](../../../platform/client/claude-settings.example.json) and [`platform/client/aws-agent-config.example`](../../../platform/client/aws-agent-config.example).
 
 ## Requirements
+
+### Requirement: The tools agents need are installed for the developer's user
+
+The machine SHALL have git, the GitHub CLI, Node.js 22.12 or later, npm, OpenSpec, AWS CLI v2, Claude Code, and the sandbox's dependencies (bubblewrap and socat on Linux) on the PATH. Node.js, OpenSpec and the AWS CLI SHALL be installed under `~/.local`, so installing them needs no administrator rights. npm SHALL install global packages into `~/.local`.
+
+Reasoning: OpenSpec needs Node.js 22.12 or later. Once the sandbox is on, sandboxed commands can't write to the home folder, so tools are installed by the developer, before the sandbox, where no `sudo` is needed.
+
+#### Scenario: An agent looks for its tools
+
+- **WHEN** a sandboxed command looks up `git`, `gh`, `node`, `npm`, `npx`, `openspec`, `aws`, `claude`, `bwrap` and `socat`
+- **THEN** each is on the PATH, and `node` reports 22.12 or later
+
+#### Scenario: npm's global folder
+
+- **WHEN** a command runs `npm config get prefix`
+- **THEN** it prints the developer's `~/.local`
+
+### Requirement: The factory skills are linked from the factory's latest release
+
+Each skill in a checkout of the factory at its latest `v*` release SHALL be linked into `~/.agents/skills/`, and from there into `~/.claude/skills/`, so sessions in any folder find them, and re-running the setup moves them to a newer release. Apps also pin their own copies, so this covers sessions outside an app, such as setting one up.
+
+#### Scenario: An agent loads a factory skill
+
+- **WHEN** a command reads `~/.claude/skills/factory-repo-setup/SKILL.md`
+- **THEN** the file is found, through links into a factory checkout at a release tag
 
 ### Requirement: Agents sign in as a dedicated agent user
 
@@ -37,7 +64,7 @@ The agent permission sets SHALL have a session duration of 4 hours, so credentia
 
 ### Requirement: The developer's admin session isn't left signed in
 
-The developer SHALL sign out of their own Identity Center session (`aws sso logout`) when they finish administration, so no token for a user with admin assignments is in the cache while agents run. The runbook SHALL say so.
+The developer SHALL sign out of their own admin session when they finish administration, so no token for a user with admin assignments is in the cache while agents run. The admin profile SHALL be named `admin`, with an SSO session named `admin`, so its token file's name, the SHA-1 of the session name, is known before anyone signs in, and the sandbox can deny it in advance. The runbook SHALL say to sign out by deleting that file, since `aws sso logout` clears every cached sign-in, the agent's included.
 
 #### Scenario: Agents run after administration
 
@@ -55,7 +82,7 @@ Claude Code SHALL set `AWS_CONFIG_FILE` to a config file that defines only the a
 
 ### Requirement: A strict sandbox
 
-Claude Code SHALL run with the sandbox enabled, refusing to start if the sandbox is unavailable, with unsandboxed retries turned off. Sandboxed commands SHALL be allowed to reach `*.amazonaws.com`, `github.com`, `api.github.com`, `*.githubusercontent.com` and `registry.npmjs.org`, plus any hosts a project needs. Sandboxed commands SHALL be denied read access to the developer's admin session token file, the developer's SSH private keys and the agent GitHub App's private key, and SHALL NOT receive `SSH_AUTH_SOCK`. Sandboxed commands SHALL be able to write npm's cache (`~/.npm`) and, when the factory observer is on, its local bundle and notes (`~/.local/share/factory-observer`, `~/.local/state/factory-observer`).
+Claude Code SHALL run with the sandbox enabled, refusing to start if the sandbox is unavailable, with unsandboxed retries turned off. Sandboxed commands SHALL be allowed to reach `*.amazonaws.com`, `github.com`, `api.github.com`, `*.githubusercontent.com` and `registry.npmjs.org`, plus any hosts a project needs. Sandboxed commands SHALL be denied read access to the developer's admin session token file, the developer's SSH private keys and the agent GitHub App's private key, SHALL NOT receive `SSH_AUTH_SOCK` or be able to connect to the developer's SSH agent, and SHALL NOT reach the GitHub CLI's token in the system keyring. Claude Code SHALL ask before its Read tool opens a file in `~/.ssh`. Sandboxed commands SHALL be able to write npm's cache (`~/.npm`) and, when the factory observer is on, its local bundle and notes (`~/.local/share/factory-observer`, `~/.local/state/factory-observer`), and SHALL NOT be able to write elsewhere directly in the home folder.
 
 Reasoning: the sandbox covers only shell commands; MCP servers, hooks and Claude's file tools run outside it ([finding](https://github.com/ErikBean/research/blob/main/knowledge/tech/aws-agent-guardrails/findings/claude-code-sandbox-shell-only.md)).
 
@@ -72,7 +99,27 @@ Reasoning: the sandbox covers only shell commands; MCP servers, hooks and Claude
 #### Scenario: A command reads the admin token
 
 - **WHEN** a sandboxed command tries to read the developer's admin session token file
-- **THEN** the read is denied
+- **THEN** the read is denied, whether or not the developer is signed in
+
+#### Scenario: A command writes to the home folder
+
+- **WHEN** a sandboxed command creates a file directly in the home folder
+- **THEN** the write fails
+
+#### Scenario: npm installs a package
+
+- **WHEN** a sandboxed command writes to `~/.npm`
+- **THEN** the write succeeds
+
+#### Scenario: A command reads an SSH private key
+
+- **WHEN** a sandboxed command reads any private key in `~/.ssh`
+- **THEN** it gets no key material
+
+#### Scenario: A command finds the SSH agent's socket
+
+- **WHEN** a sandboxed command finds an SSH agent socket on the machine and asks it to list keys
+- **THEN** the connection is refused, and `SSH_AUTH_SOCK` isn't set in the command's environment
 
 #### Scenario: A command pushes with the developer's SSH key
 

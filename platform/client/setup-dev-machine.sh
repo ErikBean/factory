@@ -7,13 +7,16 @@
 # what it would write: it writes a proposed copy next to it and tells you.
 # Re-running it is safe. It never uses sudo; it tells you what to install.
 #
-# Usage: scripts/setup-dev-machine.sh [step...]
+# Usage: platform/client/setup-dev-machine.sh [step...]
 #   steps: tools skills aws claude   (default: all, in that order)
-# Reads config.local/machine.env; see config/machine.env.example.
+# Reads config.local/machine.env at the factory's root; see
+# platform/client/machine.env.example. The requirements are in
+# openspec/specs/agent-client/spec.md.
 set -euo pipefail
-repo=$(cd "$(dirname "$0")/.." && pwd)
+here=$(cd "$(dirname "$0")" && pwd)
+repo=$(cd "$here/../.." && pwd)
 config=${DEV_MACHINE_CONFIG:-$repo/config.local/machine.env}
-[[ -f $config ]] || { echo "Missing $config. Copy config/machine.env.example there and fill it in."; exit 1; }
+[[ -f $config ]] || { echo "Missing $config. Copy platform/client/machine.env.example there and fill it in."; exit 1; }
 set -a; source "$config"; set +a
 
 bin=$HOME/.local/bin
@@ -85,11 +88,15 @@ step_tools() {
 }
 
 # Link each skill folder into ~/.agents/skills, and from there into ~/.claude/skills.
+# A link to somewhere else, such as an old factory-skills checkout, is moved
+# to the new place; anything that isn't a link is left alone and reported.
 link_skill() {
   local src=$1 n; n=$(basename "$src")
   mkdir -p "$HOME/.agents/skills" "$HOME/.claude/skills"
   local a=$HOME/.agents/skills/$n c=$HOME/.claude/skills/$n
-  if [[ -L $a && $(readlink "$a") == "$src" ]]; then :; elif [[ -e $a || -L $a ]]; then
+  if [[ -L $a && $(readlink "$a") == "$src" ]]; then :; elif [[ -L $a ]]; then
+    ln -sfn "$src" "$a"; say relinked "$a"
+  elif [[ -e $a ]]; then
     todo+=("$a exists and isn't a link to $src; move it aside and re-run"); say differs "$a"; return
   else ln -s "$src" "$a"; fi
   if [[ -L $c && $(readlink "$c") == "../../.agents/skills/$n" ]]; then say ok "skill $n"; elif [[ -e $c || -L $c ]]; then
@@ -97,14 +104,25 @@ link_skill() {
   else ln -s "../../.agents/skills/$n" "$c"; say linked "skill $n"; fi
 }
 
+# Links the skills from a checkout of the factory at its latest release, kept
+# apart from any checkout you work in, so switching branches there doesn't
+# change the skills every session sees.
 step_skills() {
-  local dir=$FACTORY_SKILLS_DIR
+  local dir=$FACTORY_DIR tag
   if [[ ! -d $dir/.git ]]; then
-    if git clone -q "$FACTORY_SKILLS_REPO" "$dir"; then say cloned "$dir"; else
-      say failed "clone $FACTORY_SKILLS_REPO"; todo+=("Sign in to GitHub (RUNBOOK.md step 2), then re-run: $0 skills"); return; fi
+    if git clone -q "$FACTORY_REPO" "$dir"; then say cloned "$dir"; else
+      say failed "clone $FACTORY_REPO"; todo+=("Check you can reach $FACTORY_REPO, then re-run: $0 skills"); return; fi
   fi
+  if ! git -C "$dir" fetch -q --tags origin; then
+    say failed "fetch $FACTORY_REPO"; todo+=("Check you can reach $FACTORY_REPO, then re-run: $0 skills"); return; fi
+  tag=$(git -C "$dir" tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
+  [[ -n $tag ]] || { say failed "no release tag in $dir"; todo+=("$FACTORY_REPO has no v* release yet"); return; }
+  if [[ -n $(git -C "$dir" status --porcelain) ]]; then
+    say differs "$dir has local changes"; todo+=("$dir has local changes; it's only for the skills, so discard them, then re-run: $0 skills"); return; fi
+  if [[ $(git -C "$dir" rev-parse HEAD) != $(git -C "$dir" rev-parse "$tag^{commit}") ]]; then
+    git -C "$dir" -c advice.detachedHead=false checkout -q "$tag"; say checked "out $tag in $dir"
+  else say ok "$dir at $tag"; fi
   for s in "$dir"/skills/*/; do link_skill "${s%/}"; done
-  link_skill "$repo/skills/dev-machine-setup"
 }
 
 step_aws() {
@@ -128,7 +146,7 @@ EOF
   fi
 
   # The agents' own config file; Claude Code's settings point agents at it.
-  put_file "$HOME/.aws/agent-config" "# AWS config for agent sessions only. Written by dev-machine's setup-dev-machine.sh.
+  put_file "$HOME/.aws/agent-config" "# AWS config for agent sessions only. Written by the factory's platform/client/setup-dev-machine.sh.
 # Sign in as the agent user with: AWS_CONFIG_FILE=~/.aws/agent-config aws sso login --sso-session agent --no-browser
 
 [sso-session agent]
@@ -151,7 +169,19 @@ region = $AWS_REGION
 }
 
 step_claude() {
-  local want; want=$(node "$repo/scripts/render-claude-settings.mjs")
+  # The hook that mints the agent GitHub App's tokens. It lives outside the
+  # repo, where sandboxed commands can't edit it; the settings run it.
+  local hook=$HOME/.claude/hooks/agent-github-token.mjs
+  mkdir -p "$(dirname "$hook")"
+  if [[ ! -e $hook ]]; then install -m 700 "$here/agent-github-token.mjs" "$hook"; say wrote "$hook"
+  elif cmp -s "$hook" "$here/agent-github-token.mjs"; then say ok "$hook"
+  else
+    install -m 600 "$here/agent-github-token.mjs" "$hook.proposed"
+    say differs "$hook (proposed version in $hook.proposed)"; todo+=("Compare $hook with $hook.proposed: diff $hook $hook.proposed")
+  fi
+  [[ -f $HOME/.config/agent-github/config.json ]] || todo+=("Set up the agents' GitHub App: platform/client/README.md, agent-github-config.example.json")
+
+  local want; want=$(node "$here/render-claude-settings.mjs")
   local file=$HOME/.claude/settings.json
   # Compare as JSON, so formatting differences don't count.
   if [[ -f $file ]] && node -e '
@@ -169,4 +199,4 @@ done
 if ((${#todo[@]})); then
   echo; echo "Still to do:"; for t in "${todo[@]}"; do echo "  - $t"; done
 fi
-echo; echo "Next: the sign-in steps in RUNBOOK.md, then ask Claude to run scripts/check-dev-machine.sh."
+echo; echo "Next: the sign-in steps in platform/client/RUNBOOK.md, then ask Claude to run platform/client/check-dev-machine.sh."

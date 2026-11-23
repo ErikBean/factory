@@ -12,6 +12,7 @@
     ],
     "ask": [
       "Read(~/.aws/**)",
+      "Read(~/.ssh/**)",
       "Bash(*.aws/*)"
     ]
   },
@@ -38,7 +39,7 @@
     "credentials": {
       "files": [
         {
-          "path": "~/.aws/sso/cache/ADMIN_SESSION_TOKEN_FILE.json",
+          "path": "~/.aws/sso/cache/d033e22ae348aeb5660fc2140aec35850c4da997.json",
           "mode": "deny"
         },
         {
