@@ -45,7 +45,9 @@ if npm view "$package@$version" version >/dev/null 2>&1; then stop "$package@$ve
 # The version's CHANGELOG.md section, from its heading to the next version's.
 notes="$(awk -v h="## [$version]" 'index($0, h) == 1 {on = 1; next} /^## \[|^\[[0-9]/ {on = 0} on' CHANGELOG.md)"
 [ -n "$(printf '%s' "$notes" | tr -d '[:space:]')" ] || stop "CHANGELOG.md has no '## [$version]' section: add it in the version-bump PR"
-existing="$(gh api "repos/$repo/git/ref/tags/$tag" --jq .object.sha 2>/dev/null || true)"
+# On a 404, gh api prints the error body to stdout, so trust its output only when it succeeds.
+existing=""
+if out="$(gh api "repos/$repo/git/ref/tags/$tag" --jq .object.sha 2>/dev/null)"; then existing="$out"; fi
 if [ -n "$existing" ] && [ "$existing" != "$sha" ]; then stop "$tag already exists at another commit: bump the version in a PR"; fi
 echo "main is $sha, clean, CI passed, CHANGELOG.md has $version, and $tag is free or already at this commit."
 
