@@ -2,6 +2,9 @@
 # Tests setup-dev-machine.sh's skills, aws and claude steps in a throwaway home
 # folder, with placeholder config. The tools step downloads, so it isn't tested here.
 # Usage: platform/client/test/setup.test.sh
+# Each expectation is a single-quoted string that expect() evals, so the
+# expansions in it and the variables it reads are deliberate.
+# shellcheck disable=SC2016,SC2034
 set -euo pipefail
 client=$(cd "$(dirname "$0")/.." && pwd)
 t=$(mktemp -d); trap 'rm -rf "$t"' EXIT

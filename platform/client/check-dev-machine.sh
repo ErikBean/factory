@@ -85,6 +85,7 @@ done
 ((found)) || ok "no SSH agent socket found"
 
 echo "== npm"
+# shellcheck disable=SC2016 # expanded by the inner bash
 check "npm can write its cache (~/.npm)" bash -c 't=$HOME/.npm/.dev-machine-probe; : > "$t" && rm -f "$t"'
 
 echo "== AWS"

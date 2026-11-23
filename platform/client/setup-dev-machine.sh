@@ -17,6 +17,7 @@ here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
 config=${DEV_MACHINE_CONFIG:-$repo/config.local/machine.env}
 [[ -f $config ]] || { echo "Missing $config. Copy platform/client/machine.env.example there and fill it in."; exit 1; }
+# shellcheck source=/dev/null
 set -a; source "$config"; set +a
 
 bin=$HOME/.local/bin
@@ -57,7 +58,7 @@ step_tools() {
     local d f; d=$(mktemp -d)
     local base=https://nodejs.org/dist/latest-v$NODE_MAJOR.x
     curl -fsSL -o "$d/SHASUMS256.txt" "$base/SHASUMS256.txt"
-    f=$(grep -o "node-v$NODE_MAJOR[^ ]*-linux-x64.tar.xz" "$d/SHASUMS256.txt")
+    f=$(grep -o "node-v${NODE_MAJOR}[^ ]*-linux-x64.tar.xz" "$d/SHASUMS256.txt")
     curl -fsSL -o "$d/$f" "$base/$f"
     (cd "$d" && grep " $f\$" SHASUMS256.txt | sha256sum -c --quiet)
     mkdir -p "$HOME/.local/opt"; tar -xJf "$d/$f" -C "$HOME/.local/opt"
