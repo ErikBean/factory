@@ -17,8 +17,10 @@ here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
 config=${DEV_MACHINE_CONFIG:-$repo/config.local/machine.env}
 [[ -f $config ]] || { echo "Missing $config. Copy platform/client/machine.env.example there and fill it in."; exit 1; }
+set -a
 # shellcheck source=/dev/null
-set -a; source "$config"; set +a
+source "$config"
+set +a
 
 bin=$HOME/.local/bin
 todo=()   # things the person has to do by hand, printed at the end
