@@ -1,6 +1,6 @@
 {
   "name": "@favabean/factory-cdk",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "CDK constructs for factory-built apps: per-stage stacks behind the account's permissions boundary, and app patterns such as a static site",
   "license": "Apache-2.0",
   "repository": {
