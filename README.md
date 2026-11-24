@@ -131,9 +131,10 @@ into the version and its changelog; after it merges, the admin runs
 `main`, creates the release, waits for the package to be staged on npm and
 offers to approve it. [`cdk/CHANGELOG.md`](cdk/CHANGELOG.md) (and
 [CHANGELOG.md](CHANGELOG.md) up to 0.3.0) says what each release changed and
-what apps must do to move to it. [RELEASING.md](RELEASING.md) has the steps,
-what each checks, moving apps to a release, and what to do when one goes
-wrong.
+what apps must do to move to it. [PUBLIC-API.md](PUBLIC-API.md) lists what
+apps rely on, which sets what counts as breaking. [RELEASING.md](RELEASING.md)
+has the steps, what each checks, moving apps to a release, and what to do when
+one goes wrong.
 
 [`platform/github/release-tags.sh`](platform/github/release-tags.sh), run
 once by the admin, makes `v*` tags admin-only to create and impossible to
