@@ -7,6 +7,7 @@ This is the software factory: the platform it runs on, and the library, workflow
 - `platform/client/`: the developer's machine. `platform/github-oidc/` and `platform/github/`: each app's GitHub OIDC roles and the repos' GitHub rules.
 - `cdk/`: the construct library apps install from npm. `.github/workflows/app-*.yml`: the reusable workflows apps call by release tag.
 - App code lives in each app's own repo, not here.
+- **What apps rely on** is in [PUBLIC-API.md](PUBLIC-API.md). Changing any of it so apps must act is breaking: a `minor` note with an **Upgrading** line, and the list updated in the same PR.
 - **Every pull request adds a change note** in `.changeset/`, as [`.changeset/README.md`](.changeset/README.md) says: `patch`, or `minor` with an **Upgrading** line if apps must act, never `major` before 1.0, or an empty note if nothing is released. Check with `node scripts/check-changeset.mjs main`.
 - Releasing: [RELEASING.md](RELEASING.md). Agents open the version-bump PR with `npx changeset version`, and move the apps afterwards; creating and approving the release is the admin's, with `platform/github/release.sh`.
 

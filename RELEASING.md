@@ -12,7 +12,7 @@ Release when a change should reach the apps. There's no fixed schedule.
 
 Every pull request adds a note in [`.changeset/`](.changeset/README.md), written by whoever makes the change: the bump, and what changed for apps. CI's `scripts/check-changeset.mjs` fails a pull request without one. Changes that release nothing, such as to CI or docs, add an empty note. Dependabot's pull requests pass without one, and the next version-bump pull request covers them.
 
-Versions stay below 1.0 until the factory's public API is written down: what apps rely on, such as the workflows' inputs, the role names and variables, the construct's props and the files the template requires. Until then:
+What apps rely on is listed in [PUBLIC-API.md](PUBLIC-API.md); a change that makes an app change something is breaking. Versions stay below 1.0 until that list is reviewed and complete. Until then:
 
 - **minor:** an app must change something to take the release. The note says what, under **Upgrading**.
 - **patch:** everything else, new features included.

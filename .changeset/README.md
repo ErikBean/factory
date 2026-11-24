@@ -14,7 +14,7 @@ What changed, for someone maintaining an app. Link the pull request.
 
 The package name stands for the whole factory release: the workflows, the library, the specs, the skills and the template share one version.
 
-Choose the bump for what apps have to do, while the version is below 1.0:
+Choose the bump for what apps have to do, judged against [PUBLIC-API.md](../PUBLIC-API.md), while the version is below 1.0:
 
 - **`minor`** when an app must change something to take the release: say what under **Upgrading**.
 - **`patch`** for everything else, new features included.
