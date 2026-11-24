@@ -66,6 +66,8 @@ Open an **Account and billing** support case from that account, signed in as you
 - Quote the error and its request ID, if a deploy has already failed.
 - Ask for the account to be verified for CloudFront. It isn't a quota, so don't request it as one.
 
+AWS may decline until the account has more usage, and suggest asking again after the next billing cycle, as it did for this factory's first account in November 2026. Amplify Hosting is no way round it: a new account's first Amplify app fails with "We've noticed an issue with your AWS account". Until the account is verified, apps serve their site with the library's `FunctionUrlSite`, a Lambda function URL with HTTPS and no CloudFront, instead of `StaticSite`. Moving to `StaticSite` later changes the site's URL.
+
 ## Create the agent, preview and production accounts
 
 This implements [`account-structure`](../../openspec/specs/account-structure/spec.md): a member account used only by agents, in an `Agents` OU; a preview account for pull request previews that only CI deploys to, in a `Preview` OU; and a production account shared by every app, in a `Production` OU. Agent-Builder is assigned to the agent account only, and Agent-ReadOnly to the agent and preview accounts. The admin permission set is assigned to all three.
