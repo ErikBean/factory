@@ -25,6 +25,7 @@ Then ask only for:
 
 - The app's name: lowercase letters, digits and hyphens, starting with a letter. It names the repo, its stacks and its roles.
 - A one-line description, for the repo.
+- Where the app's research lives, if it has any: a project's folder in a knowledge bundle, as a path on disk and a URL. It goes in `factory.config.yaml`'s `research` key, or in `factory.config.local.yaml` if a public repo mustn't name it. The spec stage proposes requirements from it.
 - Whether the repo is **public or private**. Rulesets, which guard the merge-to-deploy path, apply to a private repo only on a paid plan such as GitHub Pro, so private needs the human's account on Pro. Without it, the repo must be public.
 
 Check your tools: `gh auth status` (with the agents' GitHub App it shows the app's `[bot]` account), `node --version` (22.12 or later), and `aws sts get-caller-identity` with the agents' `dev` profile, normally `agent-builder`. Sign in as the agent user, never as the human's admin (factory#11). If a sign-in has expired, ask the human to sign the agent user in, by phone with the device-code flow if they're away.
