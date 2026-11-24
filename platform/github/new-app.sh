@@ -6,8 +6,8 @@
 #      free plan (rulesets don't apply to private repos there). With --private,
 #      it creates a private repo, after checking your account is on GitHub Pro,
 #      where rulesets do apply. Skipped if it exists.
-#   2. Adds it to the agents' GitHub App installation, so agents can push
-#      branches and open pull requests there.
+#   2. Has you add it to the agents' GitHub App installation, on the app's
+#      settings page, so agents can push branches and open pull requests there.
 #   3. Adds it to the agents' token config, ~/.config/agent-github/config.json,
 #      under the folder you name (default ~/Code), so sessions started there
 #      get a token for it. Takes effect in the next session.
@@ -58,14 +58,13 @@ fi
 repo_id="$(gh api "repos/$owner/$repo" --jq .id)"
 
 echo "== 2. Agents' app installation"
+# GitHub lets only a token tied to the agents' app change its repo list, not
+# your gh sign-in's, so you add the repo on the app's settings page.
 installation="$(node -p "require('$config').installationId")"
-if gh api -X PUT "user/installations/$installation/repositories/$repo_id" >/dev/null; then
-  echo "Added to installation $installation"
-else
-  echo "Couldn't add it through the API. Add $repo under Repository access at" >&2
-  echo "https://github.com/settings/installations/$installation, then run this again." >&2
-  exit 1
-fi
+echo "Add $repo under Repository access at https://github.com/settings/installations/$installation"
+echo "(Only select repositories, then Save), unless it's there already."
+read -r -p "Is $repo in the agents' app installation? [y/N] " answer
+[ "$answer" = y ] || { echo "Stopped: add it there, then run this again." >&2; exit 1; }
 
 echo "== 3. Agents' token config"
 node - "$config" "$folder" "$repo" <<'JS'

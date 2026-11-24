@@ -50,7 +50,7 @@ platform/github/new-app.sh <name> "<description>"             # public
 platform/github/new-app.sh --private <name> "<description>"   # private, with GitHub Pro
 ```
 
-It creates the repo, adds it to the agents' GitHub App installation and to their token config, and gives it the factory's rulesets: a pull request with a passing `test / test`, and the code owner's approval. Success ends with "Done", the repo's ID and the next steps. If adding to the installation fails, it prints the settings page to do it by hand.
+It creates the repo, has the human add it to the agents' GitHub App installation on the app's settings page, adds it to the agents' token config, and gives it the factory's rulesets: a pull request with a passing `test / test`, and the code owner's approval. Success ends with "Done", the repo's ID and the next steps.
 
 Then ask the human to start a new agent session in the same folder, because a session's GitHub token covers only the repos listed when it started. Continue there.
 
