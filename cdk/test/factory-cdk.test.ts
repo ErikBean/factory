@@ -114,6 +114,8 @@ describe("FunctionUrlSite", () => {
   test("serves through a public function URL, with no CloudFront or bucket, and its role has the boundary", () => {
     const { template, stack: s } = stack({ stage: "prod" }, (st) => new FunctionUrlSite(st, "Site", { source: siteDir() }));
     template.hasResourceProperties("AWS::Lambda::Url", { AuthType: "NONE" });
+    // The same Node.js major as the apps' .nvmrc, which they build and test with.
+    template.hasResourceProperties("AWS::Lambda::Function", { Runtime: "nodejs24.x" });
     template.resourceCountIs("AWS::CloudFront::Distribution", 0);
     template.resourceCountIs("AWS::S3::Bucket", 0);
     template.hasResourceProperties("AWS::IAM::Role", { PermissionsBoundary: BOUNDARY });

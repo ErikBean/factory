@@ -90,7 +90,7 @@ export class FunctionUrlSite extends Construct {
     cpSync(props.source, join(bundle, "site"), { recursive: true });
 
     this.function = new Function(this, "Function", {
-      runtime: Runtime.NODEJS_22_X,
+      runtime: Runtime.NODEJS_24_X,
       handler: "index.handler",
       code: Code.fromAsset(bundle),
       memorySize: 128,
