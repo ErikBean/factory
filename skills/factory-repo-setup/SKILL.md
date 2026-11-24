@@ -25,7 +25,7 @@ Then ask only for:
 
 - The app's name: lowercase letters, digits and hyphens, starting with a letter. It names the repo, its stacks and its roles.
 - A one-line description, for the repo.
-- A confirmation that the repo will be **public**. On GitHub's free plan, rulesets only apply to public repos, so a private repo's merge-to-deploy path would be unguarded. If it must be private, stop until the human has GitHub Pro.
+- Whether the repo is **public or private**. Rulesets, which guard the merge-to-deploy path, apply to a private repo only on a paid plan such as GitHub Pro, so private needs the human's account on Pro. Without it, the repo must be public.
 
 Check your tools: `gh auth status` (with the agents' GitHub App it shows the app's `[bot]` account), `node --version` (22.12 or later), and `aws sts get-caller-identity` with the agents' `dev` profile, normally `agent-builder`. Sign in as the agent user, never as the human's admin (factory#11). If a sign-in has expired, ask the human to sign the agent user in, by phone with the device-code flow if they're away.
 
@@ -46,10 +46,11 @@ All read-only, with the agent profile, apart from the test role assumptions, whi
 Give the human, from a factory checkout on `main`:
 
 ```bash
-platform/github/new-app.sh <name> "<description>"
+platform/github/new-app.sh <name> "<description>"             # public
+platform/github/new-app.sh --private <name> "<description>"   # private, with GitHub Pro
 ```
 
-It creates the public repo, adds it to the agents' GitHub App installation and to their token config, and gives it the factory's rulesets: a pull request with a passing `test / test`, and the code owner's approval. Success ends with "Done", the repo's ID and the next steps. If adding to the installation fails, it prints the settings page to do it by hand.
+It creates the repo, adds it to the agents' GitHub App installation and to their token config, and gives it the factory's rulesets: a pull request with a passing `test / test`, and the code owner's approval. Success ends with "Done", the repo's ID and the next steps. If adding to the installation fails, it prints the settings page to do it by hand.
 
 Then ask the human to start a new agent session in the same folder, because a session's GitHub token covers only the repos listed when it started. Continue there.
 

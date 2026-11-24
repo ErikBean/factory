@@ -2,8 +2,10 @@
 # Run this yourself, signed in to gh as your own GitHub user (not the agents'
 # app). The GitHub side of a new factory-built app, in one command:
 #
-#   1. Creates the repo, public, so the merge door works on GitHub's free plan
-#      (rulesets don't apply to private repos there). Skipped if it exists.
+#   1. Creates the repo, public by default, so the merge door works on GitHub's
+#      free plan (rulesets don't apply to private repos there). With --private,
+#      it creates a private repo, after checking your account is on GitHub Pro,
+#      where rulesets do apply. Skipped if it exists.
 #   2. Adds it to the agents' GitHub App installation, so agents can push
 #      branches and open pull requests there.
 #   3. Adds it to the agents' token config, ~/.config/agent-github/config.json,
@@ -16,12 +18,14 @@
 # platform/github-oidc/apps.json; after that merges, platform/github-oidc/
 # deploy-roles.sh creates its AWS roles. Safe to re-run.
 #
-#   platform/github/new-app.sh <repo> ["<description>"] [<agents' folder>]
+#   platform/github/new-app.sh [--private] <repo> ["<description>"] [<agents' folder>]
 set -euo pipefail
 cd "$(dirname "$0")"
 
+visibility=public
+if [ "${1:-}" = --private ]; then visibility=private; shift; fi
 owner=ErikBean
-repo=${1:?usage: $0 <repo> [description] [agents folder]}
+repo=${1:?usage: $0 [--private] <repo> [description] [agents folder]}
 description=${2:-"A web app built by the factory"}
 folder=${3:-$HOME/Code}
 config="$HOME/.config/agent-github/config.json"
@@ -33,13 +37,23 @@ login="$(gh api user --jq .login)" || { echo "gh isn't signed in as you: run gh 
 echo "Signed in as: $login"
 
 echo "== 1. Repo"
+# Rulesets, the merge door, apply to a private repo only on a paid plan.
+if [ "$visibility" = private ]; then
+  # GitHub shows the plan only to tokens with the user scope, which gh doesn't
+  # ask for by default; step 4 fails if the plan doesn't allow rulesets.
+  plan="$(gh api user --jq '.plan.name // "unknown"')"
+  [ "$plan" != free ] \
+    || { echo "Your account is on GitHub's free plan: rulesets need GitHub Pro for a private repo. Upgrade, or create it public" >&2; exit 1; }
+  echo "Plan: $plan"
+fi
 if gh api "repos/$owner/$repo" --jq .full_name >/dev/null 2>&1; then
-  [ "$(gh api "repos/$owner/$repo" --jq .visibility)" = public ] \
-    || { echo "$owner/$repo exists but isn't public: rulesets need it public on the free plan" >&2; exit 1; }
-  echo "$owner/$repo already exists"
+  actual="$(gh api "repos/$owner/$repo" --jq .visibility)"
+  [ "$actual" = "$visibility" ] \
+    || { echo "$owner/$repo exists but is $actual, not $visibility: run with$([ "$actual" = private ] && echo "" || echo "out") --private to match" >&2; exit 1; }
+  echo "$owner/$repo already exists ($visibility)"
 else
-  gh repo create "$owner/$repo" --public --description "$description" --add-readme >/dev/null
-  echo "Created $owner/$repo"
+  gh repo create "$owner/$repo" "--$visibility" --description "$description" --add-readme >/dev/null
+  echo "Created $owner/$repo ($visibility)"
 fi
 repo_id="$(gh api "repos/$owner/$repo" --jq .id)"
 
@@ -65,7 +79,11 @@ else { list.push(repo); fs.writeFileSync(file, JSON.stringify(c, null, 2) + "\n"
 JS
 
 echo "== 4. Rulesets"
-./repo-rulesets.sh "$repo"
+if ! ./repo-rulesets.sh "$repo"; then
+  echo "The rulesets weren't applied, so $owner/$repo has no merge door: don't let agents work in it yet." >&2
+  [ "$visibility" = private ] && echo "On a private repo, they need GitHub Pro. Upgrade, then run this again." >&2
+  exit 1
+fi
 
 cat <<EOF2
 
