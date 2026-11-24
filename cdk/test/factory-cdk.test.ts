@@ -3,10 +3,10 @@ import { App } from "aws-cdk-lib";
 import { Annotations, Match, Template } from "aws-cdk-lib/assertions";
 import { PermissionsBoundary, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { devSlug, FactoryStack, StaticSite, stageFromContext } from "../src";
+import { devSlug, FactoryStack, FunctionUrlSite, functionUrlSiteHandler, StaticSite, stageFromContext } from "../src";
 
 const BOUNDARY = { "Fn::Join": ["", Match.arrayWith([Match.stringLikeRegexp(":policy/agent-boundary$")])] };
 
@@ -110,11 +110,60 @@ describe("StaticSite", () => {
 });
 
 
+describe("FunctionUrlSite", () => {
+  test("serves through a public function URL, with no CloudFront or bucket, and its role has the boundary", () => {
+    const { template, stack: s } = stack({ stage: "prod" }, (st) => new FunctionUrlSite(st, "Site", { source: siteDir() }));
+    template.hasResourceProperties("AWS::Lambda::Url", { AuthType: "NONE" });
+    // The same Node.js major as the apps' .nvmrc, which they build and test with.
+    template.hasResourceProperties("AWS::Lambda::Function", { Runtime: "nodejs24.x" });
+    template.resourceCountIs("AWS::CloudFront::Distribution", 0);
+    template.resourceCountIs("AWS::S3::Bucket", 0);
+    template.hasResourceProperties("AWS::IAM::Role", { PermissionsBoundary: BOUNDARY });
+    template.hasResourceProperties("AWS::Logs::LogGroup", { RetentionInDays: 30 });
+    template.hasOutput("UrlSite", {});
+    expect(Annotations.fromStack(s).findError("*", Match.anyValue())).toHaveLength(0);
+  });
+
+  test("dev keeps its logs for a day", () => {
+    const { template } = stack({ stage: "dev", branch: "b" }, (st) => new FunctionUrlSite(st, "Site", { source: siteDir() }));
+    template.hasResourceProperties("AWS::Logs::LogGroup", { RetentionInDays: 1 });
+  });
+
+  test("the handler serves files with their types, the index for folders, and 404 outside the site", async () => {
+    const root = mkdtempSync(join(tmpdir(), "handler-"));
+    writeFileSync(join(root, "index.mjs"), functionUrlSiteHandler("home.html"));
+    mkdirSync(join(root, "site", "sub"), { recursive: true });
+    writeFileSync(join(root, "site", "home.html"), "<h1>home</h1>");
+    writeFileSync(join(root, "site", "sub", "home.html"), "<h1>sub</h1>");
+    writeFileSync(join(root, "site", "app.webmanifest"), "{}");
+    writeFileSync(join(root, "site", "icon.png"), Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    writeFileSync(join(root, "secret.txt"), "outside");
+    // Jest can't import an ES module, so a child node process runs the handler.
+    const paths = ["/", "/sub/", "/app.webmanifest", "/icon.png", "/missing", "/../secret.txt", "/%2e%2e/secret.txt", "/%zz"];
+    const script = `const { handler } = await import(${JSON.stringify(join(root, "index.mjs"))});
+      const out = {};
+      for (const rawPath of ${JSON.stringify(paths)}) out[rawPath] = await handler({ rawPath });
+      console.log(JSON.stringify(out));`;
+    const results = JSON.parse(
+      execFileSync(process.execPath, ["--input-type=module", "-e", script], { env: { ...process.env, LAMBDA_TASK_ROOT: root }, encoding: "utf8" }),
+    );
+    const get = async (rawPath: string) => results[rawPath];
+
+    expect(await get("/")).toMatchObject({ statusCode: 200, body: "<h1>home</h1>", headers: { "content-type": "text/html; charset=utf-8" } });
+    expect(await get("/sub/")).toMatchObject({ statusCode: 200, body: "<h1>sub</h1>" });
+    expect(await get("/app.webmanifest")).toMatchObject({ statusCode: 200, headers: { "content-type": "application/manifest+json" } });
+    expect(await get("/icon.png")).toMatchObject({ statusCode: 200, isBase64Encoded: true, body: Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString("base64") });
+    for (const path of ["/missing", "/../secret.txt", "/%2e%2e/secret.txt", "/%zz"]) {
+      expect(await get(path)).toMatchObject({ statusCode: 404 });
+    }
+  });
+});
+
 describe("package", () => {
   test("the build exports the constructs", () => {
     const built = require("../dist");
     expect(Object.keys(built)).toEqual(
-      expect.arrayContaining(["FactoryStack", "StaticSite", "stageFromContext", "devSlug", "prodDiffMarkdown", "resourcesWithoutBoundary"]),
+      expect.arrayContaining(["FactoryStack", "StaticSite", "FunctionUrlSite", "stageFromContext", "devSlug", "prodDiffMarkdown", "resourcesWithoutBoundary"]),
     );
   });
 
