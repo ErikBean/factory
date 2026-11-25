@@ -54,11 +54,8 @@ describe("roles", () => {
     }
   });
 
-  test.each([
-    ["factory-deploy-app-one", "app-deploy.yml"],
-    ["factory-dev-cleanup-app-one", "app-dev-cleanup.yml"],
-  ])("%s trusts only app-one's main branch, pinned by IDs, running the factory's %s at a release tag", (name, workflow) => {
-    const { Condition } = trustOf(roles()[name]);
+  test("factory-deploy-app-one trusts only app-one's main branch, pinned by IDs, running the factory's app-deploy.yml at a release tag", () => {
+    const { Condition } = trustOf(roles()["factory-deploy-app-one"]);
     expect(Condition).toEqual({
       StringEquals: {
         [`${ISSUER}:aud`]: "sts.amazonaws.com",
@@ -66,7 +63,23 @@ describe("roles", () => {
         [`${ISSUER}:repository_owner_id`]: "10",
         [`${ISSUER}:sub`]: ["repo:octo/app-one:ref:refs/heads/main", "repo:octo@10/app-one@101:ref:refs/heads/main"],
       },
-      StringLike: { [`${ISSUER}:job_workflow_ref`]: `octo/factory/.github/workflows/${workflow}@refs/tags/v*` },
+      StringLike: { [`${ISSUER}:job_workflow_ref`]: "octo/factory/.github/workflows/app-deploy.yml@refs/tags/v*" },
+    });
+  });
+
+  // pull_request_target runs have the subject repo:<owner>/<repo>:pull_request,
+  // not the branch form, so the base branch is pinned through the ref claim.
+  test("factory-dev-cleanup-app-one trusts only app-one's pull requests into main, pinned by IDs, running the factory's app-dev-cleanup.yml at a release tag", () => {
+    const { Condition } = trustOf(roles()["factory-dev-cleanup-app-one"]);
+    expect(Condition).toEqual({
+      StringEquals: {
+        [`${ISSUER}:aud`]: "sts.amazonaws.com",
+        [`${ISSUER}:repository_id`]: "101",
+        [`${ISSUER}:repository_owner_id`]: "10",
+        [`${ISSUER}:sub`]: ["repo:octo/app-one:pull_request", "repo:octo@10/app-one@101:pull_request"],
+        [`${ISSUER}:ref`]: "refs/heads/main",
+      },
+      StringLike: { [`${ISSUER}:job_workflow_ref`]: "octo/factory/.github/workflows/app-dev-cleanup.yml@refs/tags/v*" },
     });
   });
 

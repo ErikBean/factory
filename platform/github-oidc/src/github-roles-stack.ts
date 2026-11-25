@@ -3,8 +3,11 @@
 // app is one line there plus one admin deploy.
 //
 // Each role trusts only its app's default branch, running one of the
-// factory's reusable workflows at a release tag. The sub claim pins the
-// branch. job_workflow_ref pins the workflow and requires a v* tag, which only
+// factory's reusable workflows at a release tag. For the deploy role, which
+// runs on a push to main, the sub claim pins the branch. The dev cleanup runs
+// on pull_request_target, whose sub is the repo's pull_request form instead,
+// so its role pins the ref claim, the pull request's base branch, to main.
+// That keeps it to main's copy of the cleanup workflow. job_workflow_ref pins the workflow and requires a v* tag, which only
 // the factory's admin can create and nobody can move (the release-tags
 // ruleset), so only released factory code ever holds these roles, whatever an
 // app's pin says. An app moves to a new release without a role change.
@@ -85,20 +88,24 @@ export class GitHubRolesStack extends Stack {
     const roleArn = (name: string) => `arn:${Aws.PARTITION}:iam::${Aws.ACCOUNT_ID}:role/${name}`;
     const cfnExecRole = roleArn(`cdk-${config.devQualifier}-cfn-exec-role-${Aws.ACCOUNT_ID}-${Aws.REGION}`);
 
-    // Trusts the app's default branch running the named factory workflow.
-    const trust = (app: FactoryApp, workflow: string) => {
+    // Trusts the app's default branch running the named factory workflow. A
+    // push to main has the subject ref:refs/heads/main. A pull_request_target
+    // run has the subject pull_request, and its ref claim is the base branch.
+    const trust = (app: FactoryApp, workflow: string, event: "push" | "pull_request_target") => {
       const { name: owner, id: ownerId } = config.owner;
+      const context = event === "push" ? "ref:refs/heads/main" : "pull_request";
       return new WebIdentityPrincipal(providerArn, {
         StringEquals: {
           [`${ISSUER}:aud`]: "sts.amazonaws.com",
           [`${ISSUER}:repository_id`]: String(app.id),
           [`${ISSUER}:repository_owner_id`]: String(ownerId),
           // The plain and the immutable forms of the subject, since a repo
-          // can switch between them. Both name only the main branch.
+          // can switch between them.
           [`${ISSUER}:sub`]: [
-            `repo:${owner}/${app.repo}:ref:refs/heads/main`,
-            `repo:${owner}@${ownerId}/${app.repo}@${app.id}:ref:refs/heads/main`,
+            `repo:${owner}/${app.repo}:${context}`,
+            `repo:${owner}@${ownerId}/${app.repo}@${app.id}:${context}`,
           ],
+          ...(event === "pull_request_target" && { [`${ISSUER}:ref`]: "refs/heads/main" }),
         },
         StringLike: {
           [`${ISSUER}:job_workflow_ref`]: `${config.factoryRepo}/.github/workflows/${workflow}@refs/tags/v*`,
@@ -110,7 +117,7 @@ export class GitHubRolesStack extends Stack {
       const deploy = new Role(this, `${app.repo}-deploy`, {
         roleName: deployRoleName(app.repo),
         description: `Deploys ${app.repo} to production from its main branch, through the ${config.ciQualifier} CDK bootstrap.`,
-        assumedBy: trust(app, DEPLOY_WORKFLOW),
+        assumedBy: trust(app, DEPLOY_WORKFLOW, "push"),
         maxSessionDuration: Duration.hours(1),
         inlinePolicies: {
           "assume-cdk-bootstrap-roles": new PolicyDocument({
@@ -127,7 +134,7 @@ export class GitHubRolesStack extends Stack {
       const cleanup = new Role(this, `${app.repo}-dev-cleanup`, {
         roleName: cleanupRoleName(app.repo),
         description: `Deletes ${app.repo}'s dev stacks for a branch when its pull request closes.`,
-        assumedBy: trust(app, CLEANUP_WORKFLOW),
+        assumedBy: trust(app, CLEANUP_WORKFLOW, "pull_request_target"),
         maxSessionDuration: Duration.hours(1),
         inlinePolicies: {
           "delete-dev-stacks": new PolicyDocument({

@@ -66,7 +66,7 @@ The `dev` and `preview` stages SHALL delete their data with their stacks, using 
 
 CI SHALL destroy `dev` stacks through a cleanup role in the agent account that:
 
-- only the cleanup workflow on the app's default branch can assume, so a pull request can't change the code that holds it;
+- only the factory's released cleanup workflow, run from the app's default branch for a pull request into it, can assume, so a pull request can't change the code that holds it;
 - can only delete stacks tagged with the app's project and `stage=dev`, through the CDK execution role;
 - carries the agent boundary.
 
