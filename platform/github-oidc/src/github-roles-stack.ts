@@ -139,7 +139,9 @@ export class GitHubRolesStack extends Stack {
         inlinePolicies: {
           "delete-dev-stacks": new PolicyDocument({
             statements: [
-              new PolicyStatement({ sid: "FindStacks", actions: ["cloudformation:DescribeStacks"], resources: ["*"] }),
+              // Listing every stack, as the cleanup workflow's DescribeStacks
+              // without a stack name does, is authorized as ListStacks.
+              new PolicyStatement({ sid: "FindStacks", actions: ["cloudformation:DescribeStacks", "cloudformation:ListStacks"], resources: ["*"] }),
               new PolicyStatement({
                 sid: "DeleteOnlyThisAppsDevStacks",
                 actions: ["cloudformation:DeleteStack"],
