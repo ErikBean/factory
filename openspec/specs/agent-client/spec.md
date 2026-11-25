@@ -160,14 +160,24 @@ These SHALL be ask rules, not deny rules. With the sandbox on, Claude Code adds 
 
 ### Requirement: Agents reach GitHub only as an agent GitHub App
 
-Agents SHALL reach GitHub only with installation tokens of a GitHub App owned by the developer, the agent app, installed on only the repositories agents work on. The agent app SHALL have Contents, Pull requests and Workflows write and read access to Actions and checks, and SHALL NOT have Administration or Variables permissions. It SHALL NOT be on any ruleset's bypass list. Repository administration, such as creating a repository, setting its variables, adding its rulesets and adding it to the agent app's installation, SHALL be done by the developer.
+Agents SHALL reach GitHub only with installation tokens of a GitHub App owned by the developer, the agent app, installed on only the repositories agents work on. The agent app SHALL have Contents, Pull requests and Workflows write and read access to Actions, checks and Variables, and SHALL NOT have Administration permission or write access to Actions or Variables. It SHALL NOT be on any ruleset's bypass list. Repository administration, such as creating a repository, setting its variables, adding its rulesets and adding it to the agent app's installation, SHALL be done by the developer.
 
-Reasoning: installation tokens expire after 1 hour and can't exceed the installation's repositories ([finding](https://github.com/ErikBean/research/blob/main/knowledge/tech/github-agent-access/findings/app-installation-tokens.md)); an actor allowed to bypass a ruleset for pull requests only can still merge past it ([finding](https://github.com/ErikBean/research/blob/main/knowledge/tech/github-agent-access/findings/ruleset-bypass-actors.md)).
+Reasoning: installation tokens expire after 1 hour and can't exceed the installation's repositories ([finding](https://github.com/ErikBean/research/blob/main/knowledge/tech/github-agent-access/findings/app-installation-tokens.md)); an actor allowed to bypass a ruleset for pull requests only can still merge past it ([finding](https://github.com/ErikBean/research/blob/main/knowledge/tech/github-agent-access/findings/ruleset-bypass-actors.md)). Reading Variables lets agents check that `deploy-roles.sh` set an app's `AWS_ACCOUNT_ID` and `AWS_REGION`, which hold no secrets. Actions stays read-only because re-running a past `Deploy` run would put older code in production without the developer, and Actions write could also cancel deploys or turn workflows off; the developer re-runs runs instead ([#44](https://github.com/ErikBean/factory/issues/44)).
 
 #### Scenario: An agent opens a pull request
 
 - **WHEN** an agent pushes a branch and opens a pull request on a repository in the agent app's installation
 - **THEN** both succeed over HTTPS and the pull request is attributed to the agent app
+
+#### Scenario: An agent checks a repository's variables
+
+- **WHEN** an agent lists the variables of a repository in the agent app's installation
+- **THEN** it sees their names and values, and can't change them
+
+#### Scenario: An agent re-runs a workflow run
+
+- **WHEN** an agent tries to re-run or cancel a workflow run
+- **THEN** GitHub refuses, because the agent app has only read access to Actions
 
 #### Scenario: An agent works on a repository outside the installation
 
