@@ -61,7 +61,7 @@ Then ask the human to start a new agent session in the same folder, because a se
 2. Run `node <factory>/scripts/create-app.mjs <clone> <name>` from that checkout. It copies `template/`, fills in the name, owner and release, and syncs the stage skills. In a Claude Code sandbox, the skills sync can't write `.claude/` (factory#7): when it fails, give the human the `scripts/sync-factory-skills.sh <factory checkout>` command it prints, to run in the app.
 3. In the app: `npm install`, then `npm test`, `npx cdk synth --quiet -c stage=prod` and `npx factory-check-boundaries cdk.out`. All must pass.
 4. Commit on a branch, as two commits: the synced skills (`.agents/`, `.claude/skills/` and the sync scripts), then the rest. Push and open the setup pull request against `main`.
-5. In the factory, open a pull request adding `{"repo": "<name>", "id": <id>}` to `platform/github-oidc/apps.json`. Get the ID with `gh api repos/<owner>/<name> --jq .id`.
+5. In the factory, open a pull request adding `{"repo": "<name>", "id": <id>}` to `platform/github-oidc/apps.json`. Get the ID with `gh api repos/<owner>/<name> --jq .id`. Every factory pull request needs a change note, so add an empty one, since apps get nothing from it: `.changeset/add-<name>.md` holding `---`, `---`, and a line such as "Adds <name> to the GitHub OIDC roles." See `.changeset/README.md`.
 
 ## Step 5: The AWS roles (human)
 
