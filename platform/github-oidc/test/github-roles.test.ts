@@ -103,7 +103,11 @@ describe("roles", () => {
   test("the cleanup role deletes only its app's dev stacks, through the dev bootstrap's execution role", () => {
     const policies = roles()["factory-dev-cleanup-app-two"].Properties.Policies;
     const statements: Statement[] = policies[0].PolicyDocument.Statement;
-    expect(statements.map((s) => s.Action)).toEqual(["cloudformation:DescribeStacks", "cloudformation:DeleteStack", "iam:PassRole"]);
+    expect(statements.map((s) => s.Action)).toEqual([
+      ["cloudformation:DescribeStacks", "cloudformation:ListStacks"],
+      "cloudformation:DeleteStack",
+      "iam:PassRole",
+    ]);
     const del = statements[1].Condition.StringEquals;
     expect(del["aws:ResourceTag/project"]).toBe("app-two");
     expect(del["aws:ResourceTag/stage"]).toBe("dev");
