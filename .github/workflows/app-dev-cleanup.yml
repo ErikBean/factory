@@ -18,8 +18,9 @@ name: App dev cleanup
 #         aws-account-id: ${{ vars.AWS_ACCOUNT_ID }}
 #         aws-region: ${{ vars.AWS_REGION }}
 #
-# The role, factory-dev-cleanup-<repo>, trusts only the app's main branch
-# running this workflow, and can delete only stacks tagged with the app's
+# The role, factory-dev-cleanup-<repo>, trusts only this workflow run from the
+# app's main branch for a pull request into it (OIDC subject pull_request, ref
+# refs/heads/main), and can delete only stacks tagged with the app's
 # project and stage=dev. The branch comes from the closed pull request's own
 # event, so a pull request can't name another branch's stacks. It checks out
 # the default branch, never the pull request's code, and installs it without

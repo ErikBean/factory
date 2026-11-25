@@ -34,7 +34,7 @@ GitHub Actions reaches AWS through GitHub OIDC, with no stored keys. The roles c
 - `factory-deploy-{{name}}` deploys `prod`.
 - `factory-dev-cleanup-{{name}}` can delete only stacks tagged `project={{name}}` and `stage=dev`.
 
-Each trusts only this repo's `main` branch, pinned by the repo's numeric ID, running the matching factory workflow at a release tag. The workflows build the role ARNs from the repo variables `AWS_ACCOUNT_ID` and `AWS_REGION`, which the factory's `deploy-roles.sh` sets.
+Each trusts only this repo's `main` branch, pinned by the repo's numeric ID, running the matching factory workflow at a release tag: the deploy role on a push to `main`, and the cleanup role for a pull request into `main`. The workflows build the role ARNs from the repo variables `AWS_ACCOUNT_ID` and `AWS_REGION`, which the factory's `deploy-roles.sh` sets.
 
 The admin changes (the roles, the repo variables and the rulesets on `main`) are made by the developer, with their own admin sign-in, never by an agent. Only the developer merges: the `main-review` ruleset needs a code owner's approval of a pull request's latest push, [`CODEOWNERS`](.github/CODEOWNERS) names the developer, and a GitHub App can't be a code owner. [`.claude/hooks/block-merge.mjs`](.claude/hooks/block-merge.mjs) also refuses agents' merge, approve and push-to-`main` commands.
 

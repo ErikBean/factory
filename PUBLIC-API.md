@@ -40,9 +40,9 @@ The app's job that calls `app-ci.yml` on pull requests is named `test`, because 
 | Role | Trusted for | Can |
 | --- | --- | --- |
 | `factory-deploy-<repo>` | The app's `main` branch, by repo ID, running `app-deploy.yml` at a `v*` tag | Assume the `ci` bootstrap's roles (`cdk-<ciQualifier>-*`), for 1 hour |
-| `factory-dev-cleanup-<repo>` | The app's `main` branch, by repo ID, running `app-dev-cleanup.yml` at a `v*` tag | Describe stacks, and delete stacks tagged with the app's project and `stage=dev`, for 1 hour |
+| `factory-dev-cleanup-<repo>` | The app's pull requests into `main`, by repo ID, running `app-dev-cleanup.yml` at a `v*` tag (subject `…:pull_request`, with `ref` `refs/heads/main`) | Describe stacks, and delete stacks tagged with the app's project and `stage=dev`, for 1 hour |
 
-The roles match the OIDC subject `repo:<owner>/<repo>:ref:refs/heads/main`, in both its plain and its owner-and-repo-ID forms:
+The deploy role matches the OIDC subject `repo:<owner>/<repo>:ref:refs/heads/main`, and the cleanup role `repo:<owner>/<repo>:pull_request` with the `ref` claim `refs/heads/main`, each in both its plain and its owner-and-repo-ID forms:
 - The app's default branch must be named `main`.
 - A job that references a GitHub environment gets a different subject, so the deploy and cleanup jobs mustn't use one.
 

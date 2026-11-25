@@ -76,7 +76,8 @@ variables `AWS_ACCOUNT_ID` and `AWS_REGION`, which `deploy-roles.sh` sets.
 
 Dev cleanup runs on `pull_request_target` on purpose. GitHub then runs the
 default branch's copy of the caller, so the cleanup role can trust the default
-branch, as the deploy role does, and the release the app pins is reviewed code. The
+branch, as the deploy role does (through the token's `ref` claim, since a pull
+request run's subject is `pull_request` rather than the branch), and the release the app pins is reviewed code. The
 workflow checks out the default branch, never the pull request, and skips fork
 pull requests, whose branch names could match the repo's own.
 
