@@ -30,6 +30,16 @@ dev:
 
 research: []           # knowledge bundles the spec stage proposes requirements from; see below
 
+models:                 # the model each sub agent runs on; empty means the runtime's default
+  spec: ""
+  red: ""
+  green: ""
+  review: ""
+  verify: ""
+  ship: ""
+  observe: ""           # the observer's notes during the run
+  retro: ""             # the observer's retro and write
+
 review:
   max_rounds: 2         # review → fix loops before the human is asked
   verify: true          # verifiers check blocking and should-fix findings before anyone acts on them
@@ -99,6 +109,26 @@ research:
 ```
 
 The reviewer reads the same entries, and reports code that contradicts a recommendation the spec cited as a `should-fix`.
+
+### `models.*`
+
+The model each stage's sub agent runs on, as a name the runtime's sub agent tool accepts, such as `opus`, `sonnet` or `haiku` in Claude Code. Empty means the runtime's default, usually the conversation's own model. The orchestrator itself runs on the conversation's model, which this file can't set.
+
+Every stage agent re-reads its prompt and the files it opens on every turn, so the model is most of what a stage costs. Keep the strongest model where judgment decides the outcome, and try a cheaper one where a gate checks the work:
+
+```yaml
+models:
+  spec: opus            # proposes the requirements the human decides on, once per change
+  review: opus          # finding what's wrong is the whole job
+  verify: sonnet        # checks the reviewer, so not much weaker than it
+  red: haiku            # the orchestrator runs the tests after each red and green
+  green: haiku          # and green can't change red's tests
+  ship: haiku           # mechanical
+  observe: haiku        # appends notes
+  retro: sonnet         # turns the notes into findings
+```
+
+A cheaper call that has to be retried isn't cheaper. If a stage's handoffs keep failing their gate on the model set here, the orchestrator offers the human a stronger one for the rest of the run. The observer records each stage's model, so runs on different models can be compared.
 
 ### `review.verify`
 
