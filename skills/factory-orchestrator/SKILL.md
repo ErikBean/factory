@@ -29,7 +29,7 @@ Run this skill in the main conversation, not in a sub agent. In many runtimes, s
    - Git: a clean working tree. Plan to work on a branch named `<branch_prefix><change-id>`.
    - Pinned skills: if `scripts/check-factory-skills.mjs` exists, run `node scripts/check-factory-skills.mjs`. If it says the skills are behind, or couldn't check, put that in the plan's `Skills:` line with the changed skills. Don't sync them without the human's yes. If they say yes, run `scripts/sync-factory-skills.sh <factory-skills checkout>` and commit the result on its own before the build starts. In Claude Code, skills in `~/.claude/skills/` override the project's, so this run may already be on a newer copy. Say so if that folder holds factory skills.
    - The review queue: with `ship.mode` `pr` and `ship.review_queue` above 0, count the factory's open pull requests: `gh pr list --state open --json headRefName --jq '[.[] | select(.headRefName | startswith("<branch_prefix>"))] | length'`. If the count has reached `ship.review_queue`, don't start the build. Tell the human which pull requests are waiting for their review, and that the factory starts again once they merge or close some. The human's review time is the factory's real limit, so don't offer to raise it unless they ask. If `gh` can't list pull requests, say so in the plan's `Queue:` line and go on.
-   - Models: each `models` entry names the model that stage's sub agents run on. If your runtime's sub agent tool can't choose a model, say so in the plan's `Models:` line: every stage then runs on the default.
+   - Agents: resolve each stage's model and effort from `agents`, as [references/config.md](references/config.md) says: the stage's entry, then `default`, then the runtime's. If your runtime's sub agent tool can't set one of them, say so in the plan's `Agents:` line: those stages then run on the runtime's default for it.
    - The observer: on if `${XDG_CONFIG_HOME:-~/.config}/factory/observer.yaml` exists, or if the human asks you to observe the run. See [The observer](#the-observer).
 3. If the request is ambiguous in ways that change what gets built, list your questions now. Spec time is too late to discover the human meant something else.
 
@@ -47,7 +47,7 @@ Config:      defaults (no factory.config.yaml)
 Review:      verified; 2 outside requirements, 1 private; checks: zizmor (or: not verified)
 Skills:      pinned at d8c2cb1, current (or: 3 commits behind, factory-implementer changed | not pinned)
 Queue:       1 of 3 factory pull requests awaiting your review (or: no limit | couldn't check)
-Models:      spec opus, red haiku, green haiku, review opus, verify sonnet, ship haiku, observer haiku then sonnet (or: runtime default)
+Agents:      spec opus/medium, red haiku/medium, green haiku/medium, review opus/high, verify sonnet/medium, ship haiku/low, observer haiku/medium then sonnet/medium (or: runtime defaults)
 Observer:    on, notes to git@github.com:<you>/research.git (or: local bundle | off)
 ```
 
@@ -57,7 +57,7 @@ If `confirm.before_build` is false, print the plan and continue without waiting.
 
 ## Step 3: Run the stages
 
-Spawn each stage as a sub agent with your runtime's sub agent tool, on the model `models.<stage>` names, if it names one. Start its prompt with: "You are the `<agent>` in a software factory. Use the `<skill>` skill." If your runtime can't load skills by name, give it the path to the stage's `SKILL.md` to read first.
+Spawn each stage as a sub agent with your runtime's sub agent tool, with the model and effort resolved for it from `agents`, where they're set. Start its prompt with: "You are the `<agent>` in a software factory. Use the `<skill>` skill." If your runtime can't load skills by name, give it the path to the stage's `SKILL.md` to read first.
 
 Sub agents start with none of your context, so each prompt must carry everything the stage needs. That includes the stage name, the change id, the feature request as confirmed, the resolved config, the test command, the batch to work on, summaries of earlier handoffs, and any findings to fix. Paste in the handoff format from [references/handoff.md](references/handoff.md), which every stage ends its run with.
 
@@ -100,7 +100,7 @@ Handoffs are claims. Check them before the next stage starts:
 - **review:** read the findings and the checks in its Evidence. Each finding needs a file and line, a Source and a way to confirm it. If the change affects anything a page shows and `commands.deploy_dev` is set, the Evidence must say what the reviewer checked on the rendered `dev` site and what it saw, or why it couldn't. Send back a review that lacks these. After verification, you decide whether a confirmed should-fix finding goes back to green.
 - **Suite time:** at every red and green gate, note how long the full test command took. If it's more than twice the last gate's time and at least 30 seconds longer, or over `tdd.suite_budget`, stop before the next batch. Tell the human both times and the batch that caused the jump, and offer to send it back to the stage whose files made it slow. A slow suite found at review has been paid for in every batch since, and one over an agent's command timeout can't be run by the stages at all.
 - Any `blocked` or `needs-human` handoff: take it to the human with the options the stage gave.
-- **A stage that keeps failing its gate:** if a stage's handoffs fail their gate twice in a row on the model `models.<stage>` names, tell the human, and offer a stronger model for that stage for the rest of the run. A cheaper model that needs retries isn't cheaper. Don't change a stage's model without their yes.
+- **A stage that keeps failing its gate:** if a stage's handoffs fail their gate twice in a row on the settings `agents` gives it, tell the human, and offer a stronger model or more effort for that stage for the rest of the run. A cheaper call that needs retries isn't cheaper. Don't change a stage's settings without their yes.
 
 Never fix a stage's output yourself. Send it back to the stage that owns it.
 
@@ -135,7 +135,7 @@ Pass the surviving findings to the implementer as the reviewer wrote them, with 
 
 ## Step 5: Report
 
-End with the change id, the stages that ran and any that were skipped, the number of tests added, the number of review rounds, and the commit or PR link. Give each stage's model, and the tokens and tool calls your runtime reported for its agents, if it reports them, so runs can be compared on cost. If findings were verified, add how many the reviewer raised, how many survived, and one line for each that verification removed.
+End with the change id, the stages that ran and any that were skipped, the number of tests added, the number of review rounds, and the commit or PR link. Give each stage's model and effort, and the tokens and tool calls your runtime reported for its agents, if it reports them, so runs can be compared on cost. If findings were verified, add how many the reviewer raised, how many survived, and one line for each that verification removed.
 
 If the observer is on, run its retro after the report, as in [The observer](#the-observer).
 
@@ -147,9 +147,9 @@ The run id is `<YYYY-MM-DD>-<change-id>`, using the date the run started. Keep i
 
 Start every observer prompt with: "You are the observer of a software factory run. Use the `factory-observer` skill." Then give the mode, the run id, the project repo's path and remote, and the path to the factory skills folder. In the first observe prompt, also give the human's request that started the run, verbatim, and the plan they approved. A run's prompt often carries decisions the skills don't have yet, and later readers need to see what the factory was actually given.
 
-Spawn it on the model `models.observe` names in observe mode, and `models.retro` in retro and write modes.
+Spawn it with the settings `agents.observe` resolves to in observe mode, and `agents.retro` in retro and write modes.
 
-- **observe.** Spawn it once per stage, when the stage is over, not after every gate check: after spec and its checkpoint; after the last batch's green, for every red and green batch; after review, with verification and any fix rounds; and after ship. Give it, for each handoff in the stage: the stage and batch, the model it ran on, the tokens, tool calls and time your runtime reported for the agent, the handoff's status and summary, what you checked and what you found, and any rejection or retry. Add what the human said at the stage's checkpoints, in their words. For review, include each finding's verdicts and whether it survived, whether the human accepted it, and whether green fixed it. That record is how the factory learns whether verification helps. Spawn it in the background if your runtime can, and go on with the run. Run only one observer at a time, since they all append to the same notes file. If the last one is still running, wait for it to finish before you spawn the next.
+- **observe.** Spawn it once per stage, when the stage is over, not after every gate check: after spec and its checkpoint; after the last batch's green, for every red and green batch; after review, with verification and any fix rounds; and after ship. Give it, for each handoff in the stage: the stage and batch, the model and effort it ran on, the tokens, tool calls and time your runtime reported for the agent, the handoff's status and summary, what you checked and what you found, and any rejection or retry. Add what the human said at the stage's checkpoints, in their words. For review, include each finding's verdicts and whether it survived, whether the human accepted it, and whether green fixed it. That record is how the factory learns whether verification helps. Spawn it in the background if your runtime can, and go on with the run. Run only one observer at a time, since they all append to the same notes file. If the last one is still running, wait for it to finish before you spawn the next.
 - **retro.** After step 5, spawn it with your report. If it returns questions, ask the human. Tell them they can skip any question.
 - **write.** Spawn it with the human's answers. Tell the human where the notes went, from its `Written` section.
 
