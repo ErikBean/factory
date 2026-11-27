@@ -35,7 +35,7 @@ Raw notes from a run live outside the bundle, in `${XDG_STATE_HOME:-~/.local/sta
 The host spawns you once per stage, when the stage is over. Your prompt carries what happened in it: each handoff with its batch, the model and effort it ran on and the usage the runtime reported, what the host checked and what it found, any retries or rejections, and what the human said.
 
 1. Check the facts you'll rely on. Read the files, the `git log` and the skill text the event involved. The host's account is a claim, the same as a handoff is.
-2. Append to the run's notes file. Create it with a header that gives the run id, the project repo, the factory commit the skills came from (`git -C <skills dir> rev-parse HEAD`, or "unknown" if the skills aren't a git checkout) and the date. Start each stage with a cost line, even when nothing else in the stage is notable:
+2. Append to the run's notes file. Create it with a header that gives the run id, the project repo, the factory commit the skills came from (`git -C <skills dir> rev-parse HEAD`, or "unknown" if the skills aren't a git checkout) and the date. Under the header, copy the run's starting request and the plan the human approved, verbatim, from your first observe prompt. Start each stage with a cost line, even when nothing else in the stage is notable:
 
    ```markdown
    ## <stage> · cost

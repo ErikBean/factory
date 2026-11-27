@@ -24,7 +24,7 @@ you ── request ──► factory-orchestrator ── shows the flow, waits f
 | green | `implementer` | [`factory-implementer`](factory-implementer/SKILL.md) | Makes the tests pass without touching them, refactors, ticks the tasks |
 | review | `reviewer` | [`factory-reviewer`](factory-reviewer/SKILL.md) | Read-only review against the spec, the tests, the diff and any outside requirements in the config |
 | verify | `verifier` | [`factory-verifier`](factory-verifier/SKILL.md) | Tries to refute one review finding; blocking findings get three verifiers and survive on two confirmations |
-| ship | `releaser` | [`factory-releaser`](factory-releaser/SKILL.md) | Archives the OpenSpec change, then commits, pushes and opens a PR |
+| ship | `releaser` | [`factory-releaser`](factory-releaser/SKILL.md) | Pushes and opens a PR, finishes the tasks that need its link, then archives the OpenSpec change |
 
 Each stage runs as a sub agent with one role and one skill.
 

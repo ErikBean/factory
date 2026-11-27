@@ -11,6 +11,7 @@ workflow:
 
 tdd:
   batch: group          # group | task | change
+  suite_budget: 120     # seconds the full test command may take; 0 means no budget
 
 confirm:
   before_build: true    # show the flow and wait for a yes before any stage runs
@@ -65,6 +66,10 @@ The size of each red-green cycle:
 - `group`: one cycle per numbered group in `tasks.md`.
 - `task`: one cycle per checkbox. This is the closest to classic TDD, but it spawns the most agents.
 - `change`: one cycle for the whole change.
+
+### `tdd.suite_budget`
+
+The most seconds the full test command may take at a red or green gate. Past it, or when the time more than doubles between gates, the orchestrator stops before the next batch and asks the human. The default, 120, is a common limit on how long an agent's command may run: a suite past it can't be run by the stages. `0` leaves only the doubling check.
 
 ### `confirm.*`
 

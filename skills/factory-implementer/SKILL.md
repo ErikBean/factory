@@ -13,7 +13,7 @@ Your prompt from the orchestrator gives you the change id, the batch, the red st
 
 1. **Read the contract.** Read the red tests in the handoff, then `openspec/changes/<id>/design.md` and the batch's tasks in `tasks.md`.
 2. **Go green.** Write the simplest production code that makes the failing tests pass. Run the tests often.
-   - Don't edit, skip or delete a red test. If you think a test contradicts the spec, stop, leave it as it is, and end with `needs-human` explaining why.
+   - Don't edit, skip or delete any test, red's or one that existed before. If you think a test contradicts the spec, or an existing test blocks behavior the spec asks for, stop, leave it as it is, and end with `needs-human` explaining why. If the human agrees, the orchestrator has the red stage change it.
    - Replace any stubs from red with real code.
 3. **Refactor.** With every test green, remove duplication, improve names and bring the code in line with `design.md`. Run the tests after each refactor. Don't add behavior that no test checks. If you find a gap, report it in Notes for the next stage instead of coding it.
 4. **Run the checks.** Run the full test suite, plus `commands.lint` and `commands.typecheck` if they're set. All must pass.
@@ -22,7 +22,7 @@ Your prompt from the orchestrator gives you the change id, the batch, the red st
    - Run `AWS_PROFILE=<dev.profile> <commands.deploy_dev>`, then `AWS_PROFILE=<dev.profile> <commands.smoke_dev>`.
    - If either fails because of your code, fix it as in step 2 and rerun step 4.
    - If the deploy fails with expired credentials, or an explicit deny in a service control policy, a permissions boundary or a budget action, stop and end with `needs-human`, quoting the error. Don't work around a deny.
-6. **Tick the tasks.** In `openspec/changes/<id>/tasks.md`, change `- [ ]` to `- [x]` for the tasks in this batch, and only once steps 4 and 5 pass.
+6. **Tick the tasks.** In `openspec/changes/<id>/tasks.md`, change `- [ ]` to `- [x]` for the tasks in this batch, and only once steps 4 and 5 pass. Leave tasks marked `(ship)` for the releaser.
 
 ## If there's no red stage
 
@@ -30,7 +30,7 @@ When `workflow.tests` is `tests-with-code`, write the tests along with the code,
 
 ## Fixing review findings
 
-Work through each finding. If it's a behavior bug that no test catches, write a failing test for it first, watch it fail, then fix the code. Note in the handoff which tests are new. If you disagree with a finding, leave the code as it is and explain why in the handoff.
+Work through each finding. A red stage has already written failing tests for the findings a test can catch, and the spec stage has updated the change for any fix that changes behavior. Make those tests pass, as in step 2. If a finding needs a test that red didn't write, say so in the handoff rather than writing it. If you disagree with a finding, leave the code as it is and explain why in the handoff.
 
 ## Hand off
 

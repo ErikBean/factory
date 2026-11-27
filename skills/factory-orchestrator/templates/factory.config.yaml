@@ -8,6 +8,7 @@ workflow:
 
 tdd:
   batch: group          # group | task | change
+  suite_budget: 120     # seconds; 0 means no budget
 
 confirm:
   before_build: true

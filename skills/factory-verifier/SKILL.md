@@ -27,6 +27,8 @@ With no lens in your prompt, answer all three.
 
 You may run read-only commands, such as the tests, linters, `openspec validate` and the commands in `review.checks`. Don't deploy, push, or change files, including test files.
 
+If the finding was seen on the deployed `dev` site, you may open the same page in a browser to check it, under the reviewer's rules: sign in to nothing, submit no forms, and put back any state you change.
+
 ## Verdicts
 
 - `confirmed`: you found the evidence. Give the severity it supports: `blocking`, `should-fix` or `nit`. It can be the same as the reviewer's or lower, and never higher. If you think the finding is worse than reported, say why in Reasoning, and the orchestrator will take it to the human.
