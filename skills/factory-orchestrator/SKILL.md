@@ -29,6 +29,7 @@ Run this skill in the main conversation, not in a sub agent. In many runtimes, s
    - Git: a clean working tree. Plan to work on a branch named `<branch_prefix><change-id>`.
    - Pinned skills: if `scripts/check-factory-skills.mjs` exists, run `node scripts/check-factory-skills.mjs`. If it says the skills are behind, or couldn't check, put that in the plan's `Skills:` line with the changed skills. Don't sync them without the human's yes. If they say yes, run `scripts/sync-factory-skills.sh <factory-skills checkout>` and commit the result on its own before the build starts. In Claude Code, skills in `~/.claude/skills/` override the project's, so this run may already be on a newer copy. Say so if that folder holds factory skills.
    - The review queue: with `ship.mode` `pr` and `ship.review_queue` above 0, count the factory's open pull requests: `gh pr list --state open --json headRefName --jq '[.[] | select(.headRefName | startswith("<branch_prefix>"))] | length'`. If the count has reached `ship.review_queue`, don't start the build. Tell the human which pull requests are waiting for their review, and that the factory starts again once they merge or close some. The human's review time is the factory's real limit, so don't offer to raise it unless they ask. If `gh` can't list pull requests, say so in the plan's `Queue:` line and go on.
+   - Agents: resolve each stage's model and effort from `agents`, as [references/config.md](references/config.md) says: the stage's entry, then `default`, then the runtime's. If your runtime's sub agent tool can't set one of them, say so in the plan's `Agents:` line: those stages then run on the runtime's default for it.
    - The observer: on if `${XDG_CONFIG_HOME:-~/.config}/factory/observer.yaml` exists, or if the human asks you to observe the run. See [The observer](#the-observer).
 3. If the request is ambiguous in ways that change what gets built, list your questions now. Spec time is too late to discover the human meant something else.
 
@@ -46,6 +47,7 @@ Config:      defaults (no factory.config.yaml)
 Review:      verified; 2 outside requirements, 1 private; checks: zizmor (or: not verified)
 Skills:      pinned at d8c2cb1, current (or: 3 commits behind, factory-implementer changed | not pinned)
 Queue:       1 of 3 factory pull requests awaiting your review (or: no limit | couldn't check)
+Agents:      spec opus/medium, red haiku/medium, green haiku/medium, review opus/high, verify sonnet/medium, ship haiku/low, observer haiku/medium then sonnet/medium (or: runtime defaults)
 Observer:    on, notes to git@github.com:<you>/research.git (or: local bundle | off)
 ```
 
@@ -55,7 +57,7 @@ If `confirm.before_build` is false, print the plan and continue without waiting.
 
 ## Step 3: Run the stages
 
-Spawn each stage as a sub agent with your runtime's sub agent tool. Start its prompt with: "You are the `<agent>` in a software factory. Use the `<skill>` skill." If your runtime can't load skills by name, give it the path to the stage's `SKILL.md` to read first.
+Spawn each stage as a sub agent with your runtime's sub agent tool, with the model and effort resolved for it from `agents`, where they're set. Start its prompt with: "You are the `<agent>` in a software factory. Use the `<skill>` skill." If your runtime can't load skills by name, give it the path to the stage's `SKILL.md` to read first.
 
 Sub agents start with none of your context, so each prompt must carry everything the stage needs. That includes the stage name, the change id, the feature request as confirmed, the resolved config, the test command, the batch to work on, summaries of earlier handoffs, and any findings to fix. Paste in the handoff format from [references/handoff.md](references/handoff.md), which every stage ends its run with.
 
@@ -78,6 +80,7 @@ Handoffs are claims. Check them before the next stage starts:
 - **green:** if `commands.deploy_dev` is set and this was the last batch or a review fix, the handoff's Evidence must show the `dev` deploy and smoke test passing. If not, send it back. Run the test command, which must pass in full. Run `git diff HEAD --stat -- <red test files>`, which must be empty. If the implementer edited a red test, reject the handoff and send it back. If the implementer says a test is wrong, take it to the human. If it holds, commit: `feat(<id>): green for <batch>`.
 - **review:** read the findings and the checks in its Evidence. Each finding needs a file and line, a Source and a way to confirm it. Send back a review whose findings lack them. After verification, you decide whether a confirmed should-fix finding goes back to green.
 - Any `blocked` or `needs-human` handoff: take it to the human with the options the stage gave.
+- **A stage that keeps failing its gate:** if a stage's handoffs fail their gate twice in a row on the settings `agents` gives it, tell the human, and offer a stronger model or more effort for that stage for the rest of the run. A cheaper call that needs retries isn't cheaper. Don't change a stage's settings without their yes.
 
 Never fix a stage's output yourself. Send it back to the stage that owns it.
 
@@ -103,7 +106,7 @@ Pass the surviving findings to the implementer as the reviewer wrote them, with 
 
 ## Step 5: Report
 
-End with the change id, the stages that ran and any that were skipped, the number of tests added, the number of review rounds, and the commit or PR link. If findings were verified, add how many the reviewer raised, how many survived, and one line for each that verification removed.
+End with the change id, the stages that ran and any that were skipped, the number of tests added, the number of review rounds, and the commit or PR link. Give each stage's model and effort, and the tokens and tool calls your runtime reported for its agents, if it reports them, so runs can be compared on cost. If findings were verified, add how many the reviewer raised, how many survived, and one line for each that verification removed.
 
 If the observer is on, run its retro after the report, as in [The observer](#the-observer).
 
@@ -115,19 +118,24 @@ The run id is `<YYYY-MM-DD>-<change-id>`, using the date the run started. Keep i
 
 Start every observer prompt with: "You are the observer of a software factory run. Use the `factory-observer` skill." Then give the mode, the run id, the project repo's path and remote, and the path to the factory skills folder.
 
-- **observe.** After each handoff check in step 4, and after each human checkpoint, spawn it with: the stage and batch, the handoff as the stage wrote it, what you checked and what you found, any rejection or retry, and what the human said, in their words. After verification, include each finding's verdicts and whether it survived, and later whether the human accepted it and green fixed it. That record is how the factory learns whether verification helps. Spawn it in the background if your runtime can, and go on with the run. Run only one observer at a time, since they all append to the same notes file. If the last one is still running, wait for it to finish before you spawn the next.
+Spawn it with the settings `agents.observe` resolves to in observe mode, and `agents.retro` in retro and write modes.
+
+- **observe.** Spawn it once per stage, when the stage is over, not after every gate check: after spec and its checkpoint; after the last batch's green, for every red and green batch; after review, with verification and any fix rounds; and after ship. Give it, for each handoff in the stage: the stage and batch, the model and effort it ran on, the tokens, tool calls and time your runtime reported for the agent, the handoff's status and summary, what you checked and what you found, and any rejection or retry. Add what the human said at the stage's checkpoints, in their words. For review, include each finding's verdicts and whether it survived, whether the human accepted it, and whether green fixed it. That record is how the factory learns whether verification helps. Spawn it in the background if your runtime can, and go on with the run. Run only one observer at a time, since they all append to the same notes file. If the last one is still running, wait for it to finish before you spawn the next.
 - **retro.** After step 5, spawn it with your report. If it returns questions, ask the human. Tell them they can skip any question.
 - **write.** Spawn it with the human's answers. Tell the human where the notes went, from its `Written` section.
 
-If the run stops for good before step 5, such as when the human abandons it, run the retro and write anyway. The observer's notes on a failed run are often the most useful ones.
+If the run stops for good before step 5, such as when the human abandons it, spawn observe for the unfinished stage with what happened so far, then run the retro and write anyway. The observer's notes on a failed run are often the most useful ones.
 
 ## Resuming a run
+
+Resume in a new conversation, not in one that has already run a change: see [Rules](#rules).
 
 Run `openspec list --json` and `openspec instructions apply --change <id> --json`. Ticked tasks are batches that went green, and the git log shows the red and green commits. Confirm the flow with the human again, then continue from the first unfinished stage.
 
 ## Rules
 
 - Only you talk to the human. Stage agents raise questions in their handoffs.
+- One run per conversation. Your context is re-read on every turn, so a second run in the same conversation pays for the first one's again on each of its turns. When a run ends, tell the human to start the next one in a new conversation.
 - One stage agent at a time. Red and green for a batch never overlap. The observer and the verifiers are the exceptions: they change nothing in the project, so the observer can run beside a stage, and the verifiers beside each other.
 - Don't push, open a PR or archive the change until the human has approved, when `confirm.before_ship` is on.
 - Never merge or approve a pull request, and never push to the default branch. Merging is the human's. With `ship.mode` `pr`, the run ends at an open pull request. The repo's rulesets and its merge guard hook enforce this too, but don't rely on them.

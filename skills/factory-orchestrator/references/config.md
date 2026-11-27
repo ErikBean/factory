@@ -30,6 +30,8 @@ dev:
 
 research: []           # knowledge bundles the spec stage proposes requirements from; see below
 
+agents: {}              # model and effort for each stage's sub agents; see below
+
 review:
   max_rounds: 2         # review → fix loops before the human is asked
   verify: true          # verifiers check blocking and should-fix findings before anyone acts on them
@@ -99,6 +101,34 @@ research:
 ```
 
 The reviewer reads the same entries, and reports code that contradicts a recommendation the spec cited as a `should-fix`.
+
+### `agents`
+
+How each stage's sub agents run. List only the stages you want to change. With no `agents` key, every stage runs on the runtime's defaults.
+
+The keys are the stages, `spec`, `red`, `green`, `review`, `verify` and `ship`, plus `observe` for the observer's notes during the run, `retro` for its retro and write, and `default` for every stage that doesn't set its own. Each value is either a model name, or a map with any of:
+
+- `model`: a name the runtime's sub agent tool accepts, such as `opus`, `sonnet` or `haiku` in Claude Code.
+- `effort`: how hard the agent works within its model, such as `low`, `medium`, `high`, `xhigh` or `max` in Claude Code.
+
+Each setting is resolved on its own: the stage's entry, then `default`, then the runtime's default, usually the conversation's own model and effort. The orchestrator itself runs on the conversation's settings, which this file can't change.
+
+Every stage agent re-reads its prompt and the files it opens on every turn, so its model and effort are most of what a stage costs. Keep the strongest settings where judgment decides the outcome, and try cheaper ones where a gate checks the work:
+
+```yaml
+agents:
+  default: { effort: medium }
+  spec: opus                            # proposes the requirements the human decides on, once per change
+  review: { model: opus, effort: high } # finding what's wrong is the whole job
+  verify: sonnet                        # checks the reviewer, so not much weaker than it
+  red: haiku                            # the orchestrator runs the tests after each red and green,
+  green: haiku                          # and green can't change red's tests
+  ship: { model: haiku, effort: low }   # mechanical
+  observe: haiku                        # appends notes
+  retro: sonnet                         # turns the notes into findings
+```
+
+A cheaper call that has to be retried isn't cheaper. If a stage's handoffs keep failing their gate on the settings here, the orchestrator offers the human a stronger model or more effort for the rest of the run. The observer records each stage's model and effort, so runs on different settings can be compared.
 
 ### `review.verify`
 

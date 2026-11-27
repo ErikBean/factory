@@ -27,6 +27,8 @@ dev:
 
 research: []            # knowledge bundles the spec stage proposes requirements from; see references/config.md
 
+agents: {}              # model and effort per stage, such as `review: { model: opus, effort: high }`; see references/config.md
+
 review:
   max_rounds: 2
   verify: true
