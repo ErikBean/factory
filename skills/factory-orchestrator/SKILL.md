@@ -14,10 +14,10 @@ Run this skill in the main conversation, not in a sub agent. In many runtimes, s
 | Stage | Agent | Skill | Produces | Gate you check before moving on |
 | --- | --- | --- | --- | --- |
 | spec | `spec-writer` | `factory-spec-writer` | An OpenSpec change: proposal, spec deltas, design, tasks | `openspec validate <id> --strict` passes, and the human approves if `confirm.after_spec` |
-| red | `test-writer` | `factory-test-writer` | Failing tests, one per scenario in the batch | You run the tests: the new ones fail for the stated reason, the old ones still pass |
-| green | `implementer` | `factory-implementer` | Code that passes the tests, then a refactor | You run the tests: all pass, and the red tests are unchanged |
-| review | `reviewer` | `factory-reviewer` | Findings against the spec, the outside requirements and the diff | |
-| verify | `verifier` | `factory-verifier` | A verdict on each blocking and should-fix finding | You count the verdicts. No confirmed blocking findings, or loop back to green |
+| red | `test-writer` | `factory-test-writer` | Failing tests, one per scenario in the batch | You run the tests: the new ones fail for the stated reason or are labelled guards, the old ones still pass, and only the existing tests the batch allows changed |
+| green | `implementer` | `factory-implementer` | Code that passes the tests, then a refactor | You run the tests: all pass, and no test changed |
+| review | `reviewer` | `factory-reviewer` | Findings against the spec, the outside requirements and the diff, a check of the rendered `dev` site, and a device checklist | The rendered check is in its Evidence, if the change affects a page |
+| verify | `verifier` | `factory-verifier` | A verdict on each blocking and should-fix finding | You count the verdicts. No confirmed blocking findings, or run a fix round |
 | ship | `releaser` | `factory-releaser` | Tasks ticked, change archived, commit or PR | The human approves if `confirm.before_ship` |
 
 ## Step 1: Resolve the flow
@@ -67,22 +67,51 @@ Run the stages in this order, one agent at a time:
    - Pass the spec writer's questions to the human, then send the answers back to it.
    - If `confirm.after_spec`, show the human the change's paths, its requirements and scenarios, and its task groups, and wait for approval.
    - If the config lists `research`, also show, from the proposal's Research section, each requirement the spec stage drew from the research and the recommendation behind it. Say these are recommendations the human is now deciding on: approving the spec adopts them.
-2. **red, then green, for each batch.** `tdd.batch` sets the batch size: `group` (each numbered group in `tasks.md`), `task`, or `change`. If `workflow.tests` isn't `red-green`, skip red and tell the implementer to write tests along with the code.
-3. **review, then verify.** Spawn the reviewer. If `review.verify` is on, check its findings as in [Verifying findings](#verifying-findings), and act only on the findings that survive. On blocking findings, spawn the implementer with them, then review again. After `review.max_rounds` rounds, stop and ask the human.
-4. **ship.** If `confirm.before_ship`, show the human what will be committed, archived and pushed, and wait for a yes. If a workflow in `.github/workflows/` deploys on push to the default branch, tell the human that merging the PR deploys to production. Tell the releaser in its prompt that the human approved.
+2. **red, then green, for each batch.** `tdd.batch` sets the batch size: `group` (each numbered group in `tasks.md`), `task`, or `change`. Skip tasks marked `(ship)`, and a group of nothing else: the releaser does them after the pull request opens. If `workflow.tests` isn't `red-green`, skip red and tell the implementer to write tests along with the code.
+3. **review, then verify.** Spawn the reviewer. If `review.verify` is on, check its findings as in [Verifying findings](#verifying-findings), and act only on the findings that survive. On blocking findings, run a fix round as in [Fix rounds](#fix-rounds), then review again. After `review.max_rounds` rounds, stop and ask the human.
+4. **ship.** If `confirm.before_ship`, show the human what will be pushed, committed and archived, and wait for a yes. If a workflow in `.github/workflows/` deploys on push to the default branch, tell the human that merging the PR deploys to production. Tell the releaser in its prompt that the human approved, and give it the device checklist with what the human found.
+   - **The device checklist.** If the review's device checklist has items, give them to the human with the `dev` URL before you ask about shipping, and ask them to run it on a device. A failed item is a finding: take it to a fix round if the human wants it fixed.
+   - **Open questions answered on a device.** If the change left a question for the human to settle by trying it on a device, such as how the back gesture should behave, ask it on its own, with its options, not inside the ship yes or no. An answer folded into "all passed, ship it" gets lost. Pass the answer to the observer in the human's words.
+
+### Fix rounds
+
+A fix round turns the surviving findings the human sends to green into code, through the same stages as the first build, so the spec, the design and the tests stay in step with the code:
+
+1. **Does the fix change behavior?** For each finding, decide whether its fix changes what the change's requirements, scenarios or design say happens, or adds something they don't say. A fix that makes the code do what the spec already says doesn't.
+2. **spec**, if any fix changes behavior. Spawn the spec writer with those findings and the fix the human chose for each. It updates the change and adds a task group for the round. Check it as at the spec gate. Show the human the requirements and scenarios it changed, and wait for their yes if `confirm.after_spec`.
+3. **red**, for the round's group, or for the findings a test can catch if there's no new group. Gate it as any red.
+4. **green**, with the findings and red's handoff. Gate it as any green.
+
+Never send a behavior change straight to green: the archive would merge spec text that no longer describes the code.
 
 ## Step 4: Check every handoff yourself
 
 Handoffs are claims. Check them before the next stage starts:
 
-- **spec:** run `openspec validate <id> --strict`.
-- **red:** run the test command. Every new test must fail, and its failure output must show missing behavior, not a broken test such as a syntax error or a bad import of a test helper. Tests that existed before must still pass. If it holds, commit: `test(<id>): red for <batch>`.
-- **green:** if `commands.deploy_dev` is set and this was the last batch or a review fix, the handoff's Evidence must show the `dev` deploy and smoke test passing. If not, send it back. Run the test command, which must pass in full. Run `git diff HEAD --stat -- <red test files>`, which must be empty. If the implementer edited a red test, reject the handoff and send it back. If the implementer says a test is wrong, take it to the human. If it holds, commit: `feat(<id>): green for <batch>`.
-- **review:** read the findings and the checks in its Evidence. Each finding needs a file and line, a Source and a way to confirm it. Send back a review whose findings lack them. After verification, you decide whether a confirmed should-fix finding goes back to green.
+- **spec:** run `openspec validate <id> --strict`. If it holds, and the human approved it if `confirm.after_spec`, commit: `spec(<id>): <what it specifies>`.
+- **red:** run the test command.
+  - Every new test must fail, and its failure output must show missing behavior, not a broken test such as a syntax error or a bad import of a test helper.
+  - A new test may pass only if the handoff labels it `[guard]` or `[negative]`, names the wrong implementation it catches, and shows it failing against that implementation in a scratchpad copy.
+  - Tests that existed before must still pass, apart from those the batch's `Changes tests:` line in `tasks.md` names. Run `git diff HEAD --stat` to list the changed files, then `git diff HEAD -- <file>` for each existing test file in it. Only the tests the line names may have changed, and only in the way it says.
+  - Run `git status --short`: red changes only test files and the stubs it lists. If it changed source files, as a passability check done in the repo instead of a copy would, send it back.
+
+  If it holds, commit: `test(<id>): red for <batch>`.
+- **green:** if `commands.deploy_dev` is set and this was the last batch or a review fix, the handoff's Evidence must show the `dev` deploy and smoke test passing. If not, send it back. Run the test command, which must pass in full. Run `git diff HEAD --stat` and check that it lists no test file, unless `workflow.tests` is `tests-with-code`. If the implementer edited a test, reject the handoff and send it back. If the implementer says a test is wrong, or that an existing test blocks what the spec asks for, take it to the human. If they agree a test should change, spawn the red stage to make exactly that change and add it to the batch's `Changes tests:` line, and gate it as any red. Then resume green. If it holds, commit: `feat(<id>): green for <batch>`, or `fix(<id>): <what it fixes>` in a fix round.
+- **review:** read the findings and the checks in its Evidence. Each finding needs a file and line, a Source and a way to confirm it. If the change affects anything a page shows and `commands.deploy_dev` is set, the Evidence must say what the reviewer checked on the rendered `dev` site and what it saw, or why it couldn't. Send back a review that lacks these. After verification, you decide whether a confirmed should-fix finding goes back to green.
+- **Suite time:** at every red and green gate, note how long the full test command took. If it's more than twice the last gate's time and at least 30 seconds longer, or over `tdd.suite_budget`, stop before the next batch. Tell the human both times and the batch that caused the jump, and offer to send it back to the stage whose files made it slow. A slow suite found at review has been paid for in every batch since, and one over an agent's command timeout can't be run by the stages at all.
 - Any `blocked` or `needs-human` handoff: take it to the human with the options the stage gave.
 - **A stage that keeps failing its gate:** if a stage's handoffs fail their gate twice in a row on the model `models.<stage>` names, tell the human, and offer a stronger model for that stage for the rest of the run. A cheaper model that needs retries isn't cheaper. Don't change a stage's model without their yes.
 
 Never fix a stage's output yourself. Send it back to the stage that owns it.
+
+## Working in a sandbox or a worktree
+
+Some runtimes isolate the run, such as Claude Code's sandbox and its worktrees. What has worked there:
+
+- **Git commands one at a time.** A worktree guard may refuse git in a pipe, a loop or with a redirect. Run plain git commands separately, and read their output yourself.
+- **Branch name and push.** A worktree may come with its own branch name, such as `worktree-<name>`. Rename it with `git branch -m <branch_prefix><change-id>`. If the push can't write the upstream to the shared git config, push with `git push origin <branch>` every time.
+- **The `dev` smoke test.** If the sandbox's proxy refuses the `dev` URL, ask the human to run the exact line, `AWS_PROFILE=<dev.profile> <commands.smoke_dev>`, in a terminal tab, and use what it prints. A browser pane may reach the URL when the shell can't.
+- **A stage agent that stops partway,** such as at a usage limit or an expired sign-in: fix the cause, then continue the same agent if your runtime can, such as with SendMessage in Claude Code. It keeps what it has read, which a new agent would pay for again.
 
 ## Verifying findings
 
@@ -116,13 +145,15 @@ The observer is a sub agent that uses the `factory-observer` skill. It takes not
 
 The run id is `<YYYY-MM-DD>-<change-id>`, using the date the run started. Keep it the same when you resume.
 
-Start every observer prompt with: "You are the observer of a software factory run. Use the `factory-observer` skill." Then give the mode, the run id, the project repo's path and remote, and the path to the factory skills folder.
+Start every observer prompt with: "You are the observer of a software factory run. Use the `factory-observer` skill." Then give the mode, the run id, the project repo's path and remote, and the path to the factory skills folder. In the first observe prompt, also give the human's request that started the run, verbatim, and the plan they approved. A run's prompt often carries decisions the skills don't have yet, and later readers need to see what the factory was actually given.
 
 Spawn it on the model `models.observe` names in observe mode, and `models.retro` in retro and write modes.
 
 - **observe.** Spawn it once per stage, when the stage is over, not after every gate check: after spec and its checkpoint; after the last batch's green, for every red and green batch; after review, with verification and any fix rounds; and after ship. Give it, for each handoff in the stage: the stage and batch, the model it ran on, the tokens, tool calls and time your runtime reported for the agent, the handoff's status and summary, what you checked and what you found, and any rejection or retry. Add what the human said at the stage's checkpoints, in their words. For review, include each finding's verdicts and whether it survived, whether the human accepted it, and whether green fixed it. That record is how the factory learns whether verification helps. Spawn it in the background if your runtime can, and go on with the run. Run only one observer at a time, since they all append to the same notes file. If the last one is still running, wait for it to finish before you spawn the next.
 - **retro.** After step 5, spawn it with your report. If it returns questions, ask the human. Tell them they can skip any question.
 - **write.** Spawn it with the human's answers. Tell the human where the notes went, from its `Written` section.
+
+If you work in a worktree that limits commands to it, as Claude Code's does, run the retro and the write only after you leave it, since the write commits to a repo outside. Wait for the write to finish before you enter another worktree or end the conversation.
 
 If the run stops for good before step 5, such as when the human abandons it, spawn observe for the unfinished stage with what happened so far, then run the retro and write anyway. The observer's notes on a failed run are often the most useful ones.
 
