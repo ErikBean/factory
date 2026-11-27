@@ -32,7 +32,7 @@ Raw notes from a run live outside the bundle, in `${XDG_STATE_HOME:-~/.local/sta
 
 ## Mode: observe
 
-The host spawns you once per stage, when the stage is over. Your prompt carries what happened in it: each handoff with its batch, the model it ran on and the usage the runtime reported, what the host checked and what it found, any retries or rejections, and what the human said.
+The host spawns you once per stage, when the stage is over. Your prompt carries what happened in it: each handoff with its batch, the model and effort it ran on and the usage the runtime reported, what the host checked and what it found, any retries or rejections, and what the human said.
 
 1. Check the facts you'll rely on. Read the files, the `git log` and the skill text the event involved. The host's account is a claim, the same as a handoff is.
 2. Append to the run's notes file. Create it with a header that gives the run id, the project repo, the factory commit the skills came from (`git -C <skills dir> rev-parse HEAD`, or "unknown" if the skills aren't a git checkout) and the date. Start each stage with a cost line, even when nothing else in the stage is notable:
@@ -40,7 +40,7 @@ The host spawns you once per stage, when the stage is over. Your prompt carries 
    ```markdown
    ## <stage> · cost
 
-   - <batch or "change">: <model or "default">, <tokens> tokens, <tool calls> tool calls, <time>, <gate passed | rejected N times>
+   - <batch or "change">: <model or "default">/<effort or "default">, <tokens> tokens, <tool calls> tool calls, <time>, <gate passed | rejected N times>
    ```
 
    Write "not reported" for usage the host didn't give. Then add one entry per observation:
@@ -86,7 +86,7 @@ Your prompt carries the run id and the human's retro answers, if any.
    - A proposed change to a skill, or a cause you couldn't pin down, becomes a **Question**. Write the change you'd make and the evidence for it. The human decides.
    - Write a **Decision** only when the human stated one in the retro. Use their words.
    - Something about a tool that holds outside the factory, such as how the OpenSpec CLI behaves, goes in `tech/<tool>/`. Don't mention the factory or the project there.
-5. Update the indexes and add a dated entry for this run to the topic's `log.md`. Put each stage's cost lines in that entry, so runs can be compared by model and cost per merged change.
+5. Update the indexes and add a dated entry for this run to the topic's `log.md`. Put each stage's cost lines in that entry, so runs can be compared by settings and cost per merged change.
 6. Run the bundle's validator if its rules name one. Fix what it reports.
 7. Commit with the message `Observe factory run <run-id>`. For a remote, push. If the push is rejected, pull with rebase and push again once. If it still fails, leave the commit in the clone and say so in your return.
 8. Delete the run's notes file only after the commit succeeds.

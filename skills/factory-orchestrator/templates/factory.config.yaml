@@ -27,15 +27,7 @@ dev:
 
 research: []            # knowledge bundles the spec stage proposes requirements from; see references/config.md
 
-models:                 # empty means the runtime's default; see references/config.md
-  spec: ""
-  red: ""
-  green: ""
-  review: ""
-  verify: ""
-  ship: ""
-  observe: ""
-  retro: ""
+agents: {}              # model and effort per stage, such as `review: { model: opus, effort: high }`; see references/config.md
 
 review:
   max_rounds: 2
