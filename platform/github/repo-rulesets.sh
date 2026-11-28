@@ -7,20 +7,43 @@
 #                "test / test", the name a factory-built app's CI reports: its
 #                test job calls the factory's app-ci.yml, and GitHub names such
 #                checks "<caller job> / <called job>".
-#   main-review  a code owner's approval of the latest push. Repository admins
-#                may bypass it on their own pull requests, through a pull
-#                request only. A GitHub App can't be a code owner, so the agents
-#                can't merge their own pull requests.
-# Safe to re-run: it skips rulesets a repo already has.
+#   main-review  a code owner's approval, dismissed when anyone pushes after
+#                it. A GitHub App can't be a code owner, so the agents can't
+#                approve their own pull requests. The developer may approve a
+#                branch they updated themselves: with one developer there's no
+#                one else to approve it. Repository admins may bypass the
+#                ruleset, through a pull request only.
 #
-#   platform/github/repo-rulesets.sh my-new-app            # requires "test / test"
-#   platform/github/repo-rulesets.sh --check test factory  # the factory's own CI job is "test"
+# A repo that already has a ruleset keeps it: the script prints how it differs
+# from what the script would set. With --update, it shows the difference and
+# asks before replacing the ruleset. A replacement is the whole ruleset, so:
+#   - A bypass list fixed by hand in Settings goes back to the script's.
+#     Check it afterwards, as the note at the end says.
+#   - A required check the repo has that isn't --check's would be replaced,
+#     and every merge would wait for a check that never reports. So the
+#     script won't change the check unless --check is given.
+# Safe to re-run: without --update it changes nothing a repo already has.
+#
+#   platform/github/repo-rulesets.sh my-new-app                    # requires "test / test"
+#   platform/github/repo-rulesets.sh --check test factory          # the factory's own CI job is "test"
+#   platform/github/repo-rulesets.sh --update jello-world clams-casino
+#   platform/github/repo-rulesets.sh --update --check test factory
 set -euo pipefail
 
 owner=ErikBean
 check="test / test"
-if [ "${1:-}" = "--check" ]; then check=${2:?--check needs a check name}; shift 2; fi
-[ $# -gt 0 ] || { echo "Usage: $0 [--check <name>] <repo>..." >&2; exit 2; }
+check_given=false
+update=false
+repos=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --check) check=${2:?--check needs a check name}; check_given=true; shift 2 ;;
+    --update) update=true; shift ;;
+    -*) echo "Unknown option: $1" >&2; exit 2 ;;
+    *) repos+=("$1"); shift ;;
+  esac
+done
+[ ${#repos[@]} -gt 0 ] || { echo "Usage: $0 [--update] [--check <name>] <repo>..." >&2; exit 2; }
 [[ "$check" =~ ^[A-Za-z0-9\ /._-]+$ ]] || { echo "Unexpected characters in check name: $check" >&2; exit 2; }
 # env runs the gh program from PATH, not this function, without the agents' token.
 gh() { env -u GH_TOKEN -u GITHUB_TOKEN gh "$@"; }
@@ -42,6 +65,7 @@ main_ruleset='{
         "require_code_owner_review": false,
         "require_last_push_approval": false,
         "required_review_thread_resolution": false,
+        "require_extra_approval_for_unattributed_changes": true,
         "allowed_merge_methods": ["merge", "squash", "rebase"] } },
     { "type": "required_status_checks", "parameters": {
         "strict_required_status_checks_policy": false,
@@ -62,22 +86,90 @@ review_ruleset='{
         "required_approving_review_count": 1,
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": true,
-        "require_last_push_approval": true,
-        "required_review_thread_resolution": false } }
+        "require_last_push_approval": false,
+        "required_review_thread_resolution": false,
+        "require_extra_approval_for_unattributed_changes": true } }
   ]
 }'
 
-for repo in "$@"; do
+# Prints a ruleset in a form the script's own can be compared with: only the
+# fields the script sets, keys sorted. Rules the script doesn't set are kept
+# whole, so the difference shows them. Reads the ruleset on stdin and the
+# script's version as the first argument.
+shape() {
+  node -e '
+    const want = JSON.parse(process.argv[1]);
+    const have = JSON.parse(require("fs").readFileSync(0, "utf8"));
+    const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o && k in o).map((k) => [k, o[k]]));
+    const rules = [];
+    for (const w of want.rules) {
+      for (const r of (have.rules || []).filter((r) => r.type === w.type)) {
+        if (!w.parameters) { rules.push(r); continue; }
+        const p = pick(r.parameters, Object.keys(w.parameters));
+        if (p.required_status_checks) p.required_status_checks = p.required_status_checks.map((c) => ({ context: c.context }));
+        rules.push({ type: r.type, parameters: p });
+      }
+    }
+    for (const r of have.rules || []) if (!want.rules.some((w) => w.type === r.type)) rules.push(r);
+    const out = {
+      ...pick(have, ["name", "target", "enforcement", "conditions"]),
+      bypass_actors: (have.bypass_actors || []).map((a) => pick(a, ["actor_id", "actor_type", "bypass_mode"])),
+      rules,
+    };
+    const sort = (v) => Array.isArray(v) ? v.map(sort)
+      : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sort(v[k])])) : v;
+    console.log(JSON.stringify(sort(out), null, 2));
+  ' "$1"
+}
+
+# The required checks in a shaped ruleset, one per line.
+checks_of() {
+  node -e '
+    const r = JSON.parse(require("fs").readFileSync(0, "utf8"));
+    for (const x of r.rules) for (const c of (x.parameters && x.parameters.required_status_checks) || []) console.log(c.context);
+  '
+}
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+status=0
+
+for repo in "${repos[@]}"; do
   echo
   echo "== $owner/$repo"
-  existing="$(gh api "repos/$owner/$repo/rulesets" --jq '.[].name')"
+  existing="$(gh api "repos/$owner/$repo/rulesets?includes_parents=false" --jq '.[] | "\(.id) \(.name)"')"
   for pair in "main:$main_ruleset" "main-review:$review_ruleset"; do
     name="${pair%%:*}"
-    if grep -qx "$name" <<<"$existing"; then
-      echo "$name already exists"
-    else
-      gh api -X POST "repos/$owner/$repo/rulesets" --input - <<<"${pair#*:}" >/dev/null
+    want="${pair#*:}"
+    id="$(awk -v n="$name" '$2 == n { print $1; exit }' <<<"$existing")"
+    if [ -z "$id" ]; then
+      gh api -X POST "repos/$owner/$repo/rulesets" --input - <<<"$want" >/dev/null
       echo "created $name"
+      continue
+    fi
+    shape "$want" <<<"$want" >"$tmp/script.json"
+    gh api "repos/$owner/$repo/rulesets/$id" | shape "$want" >"$tmp/repo.json"
+    if diff -q "$tmp/repo.json" "$tmp/script.json" >/dev/null; then
+      echo "$name is up to date"
+      continue
+    fi
+    echo "$name differs from the script's (- the repo's, + the script's):"
+    diff -u "$tmp/repo.json" "$tmp/script.json" | sed 1,2d || true
+    if [ "$update" != true ]; then
+      echo "Left as it is. Run with --update to replace it."
+      continue
+    fi
+    if [ "$check_given" != true ] && [ "$(checks_of <"$tmp/repo.json")" != "$(checks_of <"$tmp/script.json")" ]; then
+      echo "Not replaced: it would change the required check. Run again with --check <the repo's CI check name>." >&2
+      status=1
+      continue
+    fi
+    read -r -p "Replace $name in $repo with the script's? [y/N] " answer || true
+    if [ "$answer" = y ]; then
+      gh api -X PUT "repos/$owner/$repo/rulesets/$id" --input - <<<"$want" >/dev/null
+      echo "replaced $name"
+    else
+      echo "Left as it is."
     fi
   done
   echo "rules on main: $(gh api "repos/$owner/$repo/rules/branches/main" \
@@ -90,3 +182,4 @@ Check in each repo's Settings > Rules > Rulesets > main-review that the bypass l
 shows "Repository admin". Actor 5 is the admin role in exported rulesets, but
 GitHub's API reference doesn't list role IDs. Fix it in the page if it differs.
 EOF
+exit "$status"

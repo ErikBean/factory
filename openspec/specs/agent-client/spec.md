@@ -215,3 +215,24 @@ Reasoning: GitHub can narrow an installation token to named repositories when mi
 
 - **WHEN** two sessions started in different repos run at the same time
 - **THEN** each keeps its own token, scoped to its own repo
+
+### Requirement: Only the developer approves merges to the default branch
+
+Each repository's default branch SHALL require a pull request with a code owner's approval, and the developer SHALL be its only code owner. A push after an approval SHALL dismiss it. The developer SHALL be able to approve a pull request whose latest push is their own. `platform/github/repo-rulesets.sh` SHALL set these rulesets, and SHALL replace an existing one only with `--update`.
+
+#### Scenario: An agent pushes after the developer approves
+
+- **WHEN** the agent app pushes to a pull request the developer has approved
+- **THEN** the approval is dismissed, and the pull request can't merge until the developer approves again
+
+#### Scenario: The developer updates a branch and approves it
+
+- **WHEN** the developer updates an agent's pull request from the default branch, then approves it
+- **THEN** the approval counts, and the pull request can merge once its checks pass
+
+#### Scenario: The rulesets script meets a repo that already has its rulesets
+
+- **WHEN** the developer runs `repo-rulesets.sh` without `--update` on a repository whose rulesets differ from the script's
+- **THEN** it prints the difference and changes nothing
+
+Reasoning: a GitHub App can't be a code owner, so the agent app can't approve. With one developer, requiring someone other than the last pusher to approve only blocks the developer after they update a branch ([#61](https://github.com/ErikBean/factory/issues/61)).
